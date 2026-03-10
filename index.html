@@ -1,0 +1,1325 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dual gAMA v7.6 — Camouflage Mask</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Bebas+Neue&display=swap');
+  :root{--bg:#08080e;--s1:#111118;--s2:#18181f;--bd:#252530;--bd2:#363645;--a1:#f0c040;--a2:#40d0f0;--a3:#f040a0;--tx:#e0e0e8;--dim:#505060;--ok:#40f0a0;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--tx);font-family:'DM Mono',monospace;min-height:100vh}
+  body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 39px,rgba(255,255,255,.01) 40px),repeating-linear-gradient(90deg,transparent,transparent 39px,rgba(255,255,255,.01) 40px);pointer-events:none;z-index:0}
+  .wrap{position:relative;z-index:1;max-width:1020px;margin:0 auto;padding:44px 20px 80px}
+
+  /* Header */
+  .tag{font-size:10px;letter-spacing:.22em;color:var(--a1);text-transform:uppercase;margin-bottom:10px;opacity:.65}
+  h1{font-family:'Bebas Neue',sans-serif;font-size:clamp(2.8rem,7vw,5rem);letter-spacing:.04em;line-height:.92;margin-bottom:16px}
+  h1 em{color:var(--a1);font-style:normal}
+
+  /* Principle diagram */
+  .how{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;border:1px solid var(--bd);border-radius:6px;overflow:hidden;max-width:700px;margin-bottom:36px}
+  @media(max-width:520px){.how{grid-template-columns:1fr}}
+  .how-cell{background:var(--s1);padding:12px 14px}
+  .how-cell+.how-cell{border-left:1px solid var(--bd)}
+  .how-lbl{font-size:9px;letter-spacing:.14em;text-transform:uppercase;margin-bottom:6px}
+  .how-cell:nth-child(1) .how-lbl{color:var(--a1)}
+  .how-cell:nth-child(2) .how-lbl{color:var(--a2)}
+  .how-cell:nth-child(3) .how-lbl{color:var(--a3)}
+  .how-desc{font-size:10px;color:var(--dim);line-height:1.7}
+  .how-desc b{font-weight:500}
+
+  /* Upload */
+  .up-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px}
+  @media(max-width:520px){.up-grid{grid-template-columns:1fr}}
+  .dz{position:relative;border:1px solid var(--bd);border-radius:8px;background:var(--s1);min-height:200px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;transition:all .18s;overflow:hidden}
+  .dz.over,.dz:hover{background:var(--s2)}
+  .dz.a.over,.dz.a:hover,.dz.a.loaded{border-color:var(--a1)}
+  .dz.b.over,.dz.b:hover,.dz.b.loaded{border-color:var(--a2)}
+  .dz-lbl{position:absolute;top:10px;left:12px;font-size:9px;letter-spacing:.16em;text-transform:uppercase;pointer-events:none;z-index:2}
+  .dz.a .dz-lbl{color:var(--a1)}
+  .dz.b .dz-lbl{color:var(--a2)}
+  .dz.loaded .dz-lbl{background:rgba(8,8,14,.88);padding:2px 8px;border-radius:2px;backdrop-filter:blur(4px)}
+  .dz-icon{font-size:30px;opacity:.15}
+  .dz-txt{font-size:11px;color:var(--dim);text-align:center;line-height:1.7}
+  .dz-txt b{color:var(--tx);font-weight:500}
+  .dz-prev{width:100%;height:100%;max-height:220px;object-fit:contain;display:none;border-radius:7px}
+  .dz-rm{position:absolute;top:8px;right:8px;width:24px;height:24px;background:rgba(8,8,14,.88);border:1px solid var(--bd2);border-radius:50%;color:var(--dim);font-size:14px;cursor:pointer;display:none;align-items:center;justify-content:center;z-index:3;transition:all .15s}
+  .dz-rm:hover{background:rgba(200,40,40,.3);border-color:#d04040;color:#d04040}
+
+  /* Panel */
+  .panel{background:var(--s1);border:1px solid var(--bd);border-radius:8px;padding:20px 22px;margin-bottom:16px}
+  .p-title{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--a2);margin-bottom:16px;display:flex;align-items:center;gap:10px}
+  .p-title::after{content:'';flex:1;height:1px;background:var(--bd)}
+  .s-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:18px}
+  .s-item label{display:block;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin-bottom:8px}
+  input[type=range]{width:100%;accent-color:var(--a1);cursor:pointer}
+  .rv{display:flex;justify-content:space-between;margin-top:5px}
+  .rv-v{font-size:12px;color:var(--a1)}
+  .rv-h{font-size:9px;color:var(--dim)}
+
+  /* Preview */
+  .prev-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
+  @media(max-width:520px){.prev-grid{grid-template-columns:1fr}}
+  .prev-box{border:1px solid var(--bd);border-radius:6px;overflow:hidden;background:#000}
+  .prev-lbl{font-size:9px;letter-spacing:.12em;text-transform:uppercase;padding:7px 10px;border-bottom:1px solid var(--bd)}
+  .prev-box.a .prev-lbl{color:var(--a1)}
+  .prev-box.b .prev-lbl{color:var(--a2)}
+  .prev-box canvas{display:block;width:100%;height:auto}
+
+  /* Progress */
+  .prog{display:none;background:var(--s1);border:1px solid var(--bd);border-radius:5px;padding:12px 16px;margin-bottom:14px;align-items:center;gap:14px}
+  .prog.show{display:flex}
+  .prog-track{flex:1;height:2px;background:var(--bd2);border-radius:1px;overflow:hidden}
+  .prog-fill{height:100%;background:linear-gradient(90deg,var(--a1),var(--a2));width:0%;transition:width .1s}
+  .prog-txt{font-size:10px;color:var(--dim);min-width:110px;text-align:right}
+
+  /* Actions */
+  .act{display:flex;gap:12px;margin-bottom:24px}
+  .btn-go{flex:1;padding:14px 24px;background:var(--a1);border:none;border-radius:5px;color:#08080e;font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:.1em;cursor:pointer;transition:all .2s}
+  .btn-go:hover{background:#ffe080;transform:translateY(-1px);box-shadow:0 8px 24px rgba(240,192,64,.2)}
+  .btn-go:disabled{opacity:.22;cursor:not-allowed;transform:none;box-shadow:none}
+  .btn-sec{padding:14px 16px;background:transparent;border:1px solid var(--bd);border-radius:5px;color:var(--dim);font-family:'DM Mono',monospace;font-size:11px;cursor:pointer;transition:all .15s}
+  .btn-sec:hover{border-color:var(--bd2);color:var(--tx)}
+
+  /* Result */
+  .result{display:none;background:var(--s1);border:1px solid var(--bd);border-radius:8px;overflow:hidden}
+  .result.show{display:block}
+  .r-head{background:var(--s2);border-bottom:1px solid var(--bd);padding:12px 20px;display:flex;align-items:center;justify-content:space-between}
+  .r-ttl{font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--ok);display:flex;align-items:center;gap:8px}
+  .r-ttl::before{content:'✓';width:16px;height:16px;border:1px solid var(--ok);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:9px;background:rgba(64,240,160,.1)}
+  .r-body{padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:520px){.r-body{grid-template-columns:1fr}}
+  .r-prev{border:1px solid var(--bd);border-radius:5px;overflow:hidden;background:#000}
+  .r-prev-lbl{font-size:9px;letter-spacing:.1em;text-transform:uppercase;padding:6px 10px;border-bottom:1px solid var(--bd)}
+  .r-prev.a .r-prev-lbl{color:var(--a1);background:rgba(240,192,64,.05)}
+  .r-prev.b .r-prev-lbl{color:var(--a2);background:rgba(64,208,240,.05)}
+  .r-prev canvas{display:block;width:100%;height:auto}
+  .meta-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:12px;padding:16px 20px;border-top:1px solid var(--bd)}
+  .mk{font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
+  .mv{font-size:13px;color:var(--a2);margin-top:2px}
+  .dl-btn{width:calc(100% - 40px);margin:0 20px 20px;padding:12px;background:var(--a2);border:none;border-radius:5px;color:#08080e;font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:.1em;cursor:pointer;transition:all .18s;display:block}
+  .dl-btn:hover{background:#90f0ff;transform:translateY(-1px)}
+
+  .note{margin-top:24px;padding:14px 18px;border:1px solid rgba(240,192,64,.15);border-radius:5px;background:rgba(240,192,64,.02);font-size:11px;color:var(--dim);line-height:1.9}
+  .note b{color:var(--a1);font-weight:500}
+  .note .ok{color:var(--ok)}
+
+
+  .opt-row{display:flex;align-items:center;gap:8px;padding:9px 10px;border:1px solid var(--bd);border-radius:6px;background:var(--s2)}
+  .opt-row input[type=checkbox]{accent-color:var(--a2);width:16px;height:16px;cursor:pointer}
+  .opt-row .opt-label{font-size:10px;color:var(--tx);line-height:1.5;flex:1}
+  .opt-row .opt-badge{font-size:9px;color:var(--a2);border:1px solid var(--bd2);border-radius:999px;padding:2px 8px;display:none;white-space:nowrap}
+  .dim-when-auto{opacity:.45;pointer-events:none}
+
+  canvas{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="tag">Dual gAMA v7.6 · Camouflage Mask</div>
+  <h1>DUAL <em>gAMA</em><br>v7.6 위장 마스크</h1>
+
+  <div class="how">
+    <div class="how-cell">
+      <div class="how-lbl">핵심 아이디어</div>
+      <div class="how-desc">
+        B 픽셀 = v7 gamma 디더링<br>
+        <b>고정 마스크 + 양방향 누출 상쇄</b><br>
+        A/B가 서로 남길 잔상을 프록시 단계에서 미리 줄임
+      </div>
+    </div>
+    <div class="how-cell">
+      <div class="how-lbl">gAMA 무시 뷰어 (디시)</div>
+      <div class="how-desc">
+        A픽셀 → A 색상<br>
+        B픽셀 → 밝은 틴트 철망<br>
+        <b>A 누출 상쇄 + 위상 분산 패턴</b>으로 철망 잔상과 격자감 완화 ✓
+      </div>
+    </div>
+    <div class="how-cell">
+      <div class="how-lbl">gAMA 적용 뷰어 (갤러리)</div>
+      <div class="how-desc">
+        A픽셀 → safeMax 범위로 눌린 뒤 소멸 경향<br>
+        B픽셀 → gamma 디코드 → <b>B 색상</b><br>
+        B 복원 + B 팔레트 자동 최적화(선택)로 밝기/감마 초기값 보정 ✓
+      </div>
+    </div>
+  </div>
+
+  <!-- Upload -->
+  <div class="up-grid">
+    <div class="dz a" id="zA" onclick="document.getElementById('fA').click()">
+      <span class="dz-lbl">A · 디시/웹에서 보임</span>
+      <div id="phA"><div class="dz-icon">◈</div><div class="dz-txt"><b>클릭 또는 드래그</b><br>gAMA 무시 뷰어에서 보일 이미지</div></div>
+      <img class="dz-prev" id="pvA">
+      <button class="dz-rm" id="rmA" onclick="rmImg(event,'A')">×</button>
+    </div>
+    <input type="file" id="fA" accept="image/*" style="display:none">
+
+    <div class="dz b" id="zB" onclick="document.getElementById('fB').click()">
+      <span class="dz-lbl">B · 갤러리에서 보임</span>
+      <div id="phB"><div class="dz-icon">◇</div><div class="dz-txt"><b>클릭 또는 드래그</b><br>gAMA 적용 뷰어에서 보일 이미지</div></div>
+      <img class="dz-prev" id="pvB">
+      <button class="dz-rm" id="rmB" onclick="rmImg(event,'B')">×</button>
+    </div>
+    <input type="file" id="fB" accept="image/*" style="display:none">
+  </div>
+
+  <!-- Settings -->
+  <div class="panel">
+    <div class="p-title">파라미터</div>
+    <div class="s-grid">
+      <div class="s-item">
+        <label>B 색 단계 (v7 팔레트)</label>
+        <input type="range" id="nColors" min="2" max="8" step="1" value="6">
+        <div class="rv"><span class="rv-v" id="nColorsDisp">6단계</span><span class="rv-h">양자화 단계 수 · 아래의 바닥/편향/유지로 B 밝기 감각을 따로 조절</span></div>
+      </div>
+      <div class="s-item">
+        <label>B 밝기 바닥</label>
+        <input type="range" id="bFloor" min="40" max="144" step="4" value="92">
+        <div class="rv"><span class="rv-v" id="bFloorDisp">92</span><span class="rv-h">팔레트의 최저 밝기만 올림 · 단계 수가 늘며 생기는 중간톤 어두워짐은 아래 유지 슬라이더가 담당</span></div>
+      </div>
+      <div class="s-item">
+        <label>B 밝은쪽 편향</label>
+        <input type="range" id="bBias" min="70" max="145" step="5" value="120">
+        <div class="rv"><span class="rv-v" id="bBiasDisp">120%</span><span class="rv-h">같은 단계 수에서도 밝은쪽 단계에 더 많이 배분</span></div>
+      </div>
+      <div class="s-item">
+        <label>B 평균 밝기 유지</label>
+        <input type="range" id="bHold" min="0" max="100" step="5" value="70">
+        <div class="rv"><span class="rv-v" id="bHoldDisp">70%</span><span class="rv-h">단계 수가 높아질수록 생기는 B의 중간톤 어두워짐을 자동 완화</span></div>
+      </div>
+      <div class="s-item">
+        <label>B 팔레트 자동 최적화</label>
+        <div class="opt-row">
+          <input type="checkbox" id="autoOptimize">
+          <span class="opt-label">B 프록시의 색 분포를 보고 <b>darkest/gamma</b>를 자동 추정합니다. 수동 <b>B 밝기 바닥</b>은 이때 보조값이 아니라 기준 범위 밖으로 벗어나지 않도록 참고만 됩니다.</span>
+          <span class="opt-badge" id="optBadge"></span>
+        </div>
+      </div>
+      <div class="s-item">
+        <label>철망 틴트 색상</label>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
+          <input type="color" id="tintColor" value="#f8fbff" style="width:44px;height:32px;border:1px solid var(--bd2);border-radius:4px;background:none;cursor:pointer;padding:2px">
+          <span style="font-size:10px;color:var(--dim);line-height:1.6">gAMA 무시 시<br>이 색의 밝은 버전으로 보임</span>
+        </div>
+        <div style="font-size:9px;color:var(--a1);margin-top:6px" id="tintInfo">채널 상단값: R248 G251 B255 · 바닥 92 · 편향 120% · 유지 70%</div>
+      </div>
+      <div class="s-item">
+        <label>A/B 배치 비율</label>
+        <input type="range" id="mixMode" min="0" max="1" step="1" value="1">
+        <div class="rv"><span class="rv-v" id="mixModeDisp">1:1 균형</span><span class="rv-h">0=균형(권장, B 가장 안정) / 1=A 우선 3:1</span></div>
+      </div>
+      <div class="s-item">
+        <label>배치 패턴</label>
+        <input type="range" id="blockSize" min="1" max="4" step="1" value="2">
+        <div class="rv"><span class="rv-v" id="blockDisp">2×2px · 회전 직조</span><span class="rv-h">2×2 이상 권장 · 보간 안정성↑</span></div>
+        <div style="font-size:9px;color:var(--a1);margin-top:6px">권장: 2×2 이상 · 1×1은 보간 때문에 A/B가 많이 섞일 수 있음</div>
+      </div>
+      <div class="s-item">
+        <label>패턴 모드</label>
+        <input type="range" id="patternMode" min="0" max="3" step="1" value="3">
+        <div class="rv"><span class="rv-v" id="patternModeDisp">블루노이즈 직조</span><span class="rv-h">0=기본 블록 / 1=회전 직조 / 2=분산 직조 / 3=블루노이즈 직조(권장)</span></div>
+      </div>
+      <div class="s-item">
+        <label>프록시 스무딩</label>
+        <input type="range" id="ghostGuard" min="0" max="3" step="1" value="2">
+        <div class="rv"><span class="rv-v" id="ghostGuardDisp">중간</span><span class="rv-h">배치는 고정한 채 프록시만 부드럽게 만들어 과도한 구조 복사를 줄임</span></div>
+      </div>
+      <div class="s-item">
+        <label>모아레 억제</label>
+        <input type="range" id="moireGuard" min="0" max="3" step="1" value="2">
+        <div class="rv"><span class="rv-v" id="moireGuardDisp">중간</span><span class="rv-h">위상 분산 + 약한 프리블러로 규칙 격자와 뷰어 보간 충돌을 줄임</span></div>
+      </div>
+      <div class="s-item">
+        <label>위장 마스크 강도</label>
+        <input type="range" id="camoufStrength" min="0" max="100" step="5" value="55">
+        <div class="rv"><span class="rv-v" id="camoufStrengthDisp">55%</span><span class="rv-h">A밝은곳→B픽셀 집중, A어두운곳→A픽셀 집중 · 철망이 A 밝은 영역으로 이동해 시각적으로 덜 거슬림</span></div>
+        <div style="font-size:9px;color:var(--a2);margin-top:6px" id="camoufInfo">A 밝은 영역에 B픽셀 집중 배치 · A 어두운 영역 철망 억제</div>
+      </div>
+      <div class="s-item">
+        <label>A 누출 상쇄</label>
+        <input type="range" id="aLeakCut" min="0" max="100" step="5" value="45">
+        <div class="rv"><span class="rv-v" id="aLeakCutDisp">45%</span><span class="rv-h">B 밝은 철망이 A에 남길 헤일로/색침범을 미리 감산</span></div>
+      </div>
+      <div class="s-item">
+        <label>B 누출 상쇄</label>
+        <input type="range" id="bLeakCut" min="0" max="100" step="5" value="40">
+        <div class="rv"><span class="rv-v" id="bLeakCutDisp">40%</span><span class="rv-h">A 누출을 B 팔레트 선택 직전까지 반영해 실제 출력 단계에서 억제</span></div>
+      </div>
+      <div class="s-item">
+        <label>검은 테두리</label>
+        <input type="range" id="borderVal" min="0" max="15" step="1" value="10">
+        <div class="rv"><span class="rv-v" id="borderDisp">10px</span><span class="rv-h">디시 필수: 10px</span></div>
+      </div>
+      <div class="s-item">
+        <label>A 밝기 억제 (safeMax)</label>
+        <input type="range" id="safeMaxVal" min="10" max="200" step="5" value="100">
+        <div class="rv"><span class="rv-v" id="safeMaxDisp">100</span><span class="rv-h">낮을수록 갤러리서 A 소멸↑</span></div>
+      </div>
+      <div class="s-item">
+        <label>A 대비 부스트</label>
+        <input type="range" id="aBoost" min="100" max="300" step="5" value="190">
+        <div class="rv"><span class="rv-v" id="aBoostDisp">190%</span><span class="rv-h">중간톤을 살려 A 가독성↑</span></div>
+      </div>
+      <div class="s-item">
+        <label>B 중간톤 리프트</label>
+        <input type="range" id="bLift" min="100" max="150" step="2" value="104">
+        <div class="rv"><span class="rv-v" id="bLiftDisp">112%</span><span class="rv-h">B를 살짝 밝게 올려 갤러리 가독성↑</span></div>
+      </div>
+      <div class="s-item">
+        <label>B 채도 부스트</label>
+        <input type="range" id="bSat" min="100" max="170" step="5" value="104">
+        <div class="rv"><span class="rv-v" id="bSatDisp">120%</span><span class="rv-h">밝기보다 채도/색 분리감 강화</span></div>
+      </div>
+      <div class="s-item">
+        <label>B 대비 부스트</label>
+        <input type="range" id="bContrast" min="100" max="150" step="5" value="102">
+        <div class="rv"><span class="rv-v" id="bContrastDisp">115%</span><span class="rv-h">중간톤 대비로 B 형태 선명도↑</span></div>
+      </div>
+    </div>
+
+    <!-- Preview -->
+    <div id="previewArea" style="display:none">
+      <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--bd)">
+        <div style="font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-bottom:10px">실시간 미리보기 (저해상도)</div>
+        <div class="prev-grid">
+          <div class="prev-box a"><div class="prev-lbl">A · gAMA 무시 시뮬레이션 (디시)</div><canvas id="simA" style="display:block;width:100%;height:auto"></canvas></div>
+          <div class="prev-box b"><div class="prev-lbl">B · gAMA 적용 시뮬레이션 (갤러리)</div><canvas id="simB" style="display:block;width:100%;height:auto"></canvas></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Progress -->
+  <div class="prog" id="prog">
+    <div class="prog-track"><div class="prog-fill" id="progFill"></div></div>
+    <span class="prog-txt" id="progTxt">처리 중...</span>
+  </div>
+
+  <!-- Actions -->
+  <div class="act">
+    <button class="btn-go" id="goBtn" onclick="generate()" disabled>✦ ✦ GENERATE DUAL gAMA v7.4a EXPERIMENTAL</button>
+    <button class="btn-sec" onclick="applyPreset1()">프리셋 1</button>
+    <button class="btn-sec" onclick="applyPreset2()">프리셋 2</button>
+    <button class="btn-sec" onclick="resetAll()">초기화</button>
+  </div>
+
+  <!-- Result -->
+  <div class="result" id="resultPanel">
+    <div class="r-head">
+      <span class="r-ttl">생성 완료</span>
+      <span style="font-size:10px;color:var(--dim)">dual_gama_v7_4a.png</span>
+    </div>
+    <div class="r-body">
+      <div class="r-prev a"><div class="r-prev-lbl">A · gAMA 무시 시뮬레이션 (디시)</div><canvas id="outA" style="display:block;width:100%;height:auto"></canvas></div>
+      <div class="r-prev b"><div class="r-prev-lbl">B · gAMA 적용 시뮬레이션 (갤러리)</div><canvas id="outB" style="display:block;width:100%;height:auto"></canvas></div>
+    </div>
+    <div class="meta-row">
+      <div><div class="mk">해상도</div><div class="mv" id="mRes">—</div></div>
+      <div><div class="mk">B 단계</div><div class="mv" id="mN">—</div></div>
+      <div><div class="mk">블록</div><div class="mv" id="mBlock">—</div></div>
+      <div><div class="mk">패턴</div><div class="mv" id="mPattern">—</div></div>
+      <div><div class="mk">safeMax</div><div class="mv" id="mSafe">—</div></div>
+      <div><div class="mk">gamma</div><div class="mv" id="mGamma">—</div></div>
+      <div><div class="mk">A 오차</div><div class="mv" id="mErrA">—</div></div>
+      <div><div class="mk">B 오차</div><div class="mv" id="mErrB">—</div></div>
+      <div><div class="mk">파일 크기</div><div class="mv" id="mSize">—</div></div>
+    </div>
+    <button class="dl-btn" onclick="doDownload()">↓ DOWNLOAD PNG</button>
+  </div>
+
+  <div class="note">
+    <b>v7.6 변경점 — 위장 마스크:</b><br>
+    기존 버전에서 B 픽셀(저장값 ~252)이 A 이미지의 <b>어두운 영역에도 균등 배치</b>되어, 어두운 배경 위에 흰 점(철망)이 극명하게 보이는 문제가 있었습니다.<br><br>
+    <b>위장 마스크</b>는 A/B 픽셀 배치를 <b>콘텐츠에 적응</b>시킵니다:<br>
+    · <b>A가 밝은 영역</b> → B픽셀 우선 배치 (B저장값 252 vs A밝기 200 → 대비 작음 → 철망 덜 보임)<br>
+    · <b>A가 어두운 영역</b> → A픽셀 우선 배치 (철망이 어두운 배경에 나타나지 않음)<br>
+    · <b>B가 밝은 영역</b> → B픽셀 우선 배치 (B 밝은 영역에 픽셀 집중 → B 품질 보전)<br><br>
+    <b class="ok">한계:</b> B픽셀 저장값(250~255) 자체를 바꾸지는 않으므로 철망을 완전히 제거하지는 못합니다. 어두운 A 영역에서의 철망이 밝은 A 영역으로 이동해 시각적으로 덜 눈에 띄게 됩니다.<br><br>
+    <b>권장 시작값:</b> 위장 강도 40~70% · 블루노이즈 직조 · 자동 최적화 ON · safeMax 90~110 · A 대비 180~215
+  </div>
+
+</div>
+
+<canvas id="cvA"></canvas>
+<canvas id="cvB"></canvas>
+<canvas id="cvOut"></canvas>
+
+<script>
+
+'use strict';
+
+let imgA=null, imgB=null, resultBlob=null, prevTimer=null;
+
+// ── CRC32 ──────────────────────────────────────────────────────────────────
+const crcTable=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);t[n]=c;}return t;})();
+function crc32(arr,s,l){let r=0xFFFFFFFF;for(let i=s;i<s+l;i++)r=crcTable[(r^arr[i])&0xFF]^(r>>>8);return(r^0xFFFFFFFF)>>>0;}
+
+// ── PNG gAMA (identical to v7) ─────────────────────────────────────────────
+function makeGAMAChunk(gamma){
+  const cg=Math.round(100000*gamma/2.2);
+  const c=new Uint8Array(16);
+  const be=(o,w)=>{for(let i=0;i<4;i++){c[4*o+3-i]=w&0xFF;w=w>>>8;}};
+  be(0,4);be(1,0x67414D41);be(2,cg);be(3,crc32(c,4,8));
+  return c;
+}
+function rebuildPNGWithGAMA(buffer,gama){
+  const b=new Uint8Array(buffer),v=new DataView(buffer);
+  [137,80,78,71,13,10,26,10].forEach((s,i)=>{if(b[i]!==s)throw new Error('PNG sig');});
+  const chunks=[],parts=[b.slice(0,8)];
+  let off=8;
+  while(off<buffer.byteLength-4){
+    const dl=v.getUint32(off,false);
+    const t=String.fromCharCode(b[off+4],b[off+5],b[off+6],b[off+7]);
+    chunks.push({t,off,total:12+dl});off+=12+dl;
+    if(t==='IEND')break;
+  }
+  for(const c of chunks){
+    if(c.t==='sRGB'||c.t==='iCCP'||c.t==='gAMA')continue;
+    parts.push(b.slice(c.off,c.off+c.total));
+    if(c.t==='IHDR')parts.push(gama);
+  }
+  const tot=parts.reduce((s,p)=>s+p.length,0);
+  const r=new Uint8Array(tot);let p=0;
+  for(const x of parts){r.set(x,p);p+=x.length;}
+  return r;
+}
+
+// ── Palette (v7.3 stage-darkening compensation) ────────────────────────────
+// n colors, darkest decoded = darkestVal, brightBias controls how strongly
+// mid/high tones are biased toward brighter palette entries during dithering.
+function buildPalette(n, darkestVal, brightBias, keepBright){
+  const od=(255-n+1)/255, cd=Math.max(darkestVal,1)/255;
+  const invG=Math.log(cd)/Math.log(od);
+  const gamma=1/invG;
+  const chans=[];
+  for(let ch=255-n+1;ch<=255;ch++) chans.push(255*Math.pow(ch/255,invG));
+  const cg=Math.round(100000*gamma/2.2);
+  const decodeExp=2.2/(cg/100000);
+  const bias=Math.max(0.55, Math.min(1.45, brightBias/100));
+  const biasExp=1/bias; // >100 => brighter tilt, <100 => darker tilt
+  const hold=Math.max(0, Math.min(100, keepBright));
+  return{gamma,invG,decodeExp,chans,darkest:darkestVal,n,brightBias,biasExp,keepBright:hold};
+}
+
+let _adaptPalCache=null, _adaptPalKey='';
+function buildPaletteAdaptive(px, n, brightBias, keepBright){
+  const hist=new Float64Array(256);
+  for(let i=0;i<px.length;i+=4){hist[px[i]]++;hist[px[i+1]]++;hist[px[i+2]]++;}
+  let bestPal=null, bestErr=Infinity;
+  for(let d=40;d<=160;d+=2){
+    const pal=buildPalette(n,d,brightBias,keepBright);
+    const {chans}=pal;
+    let err=0;
+    for(let v=0;v<256;v++){
+      if(!hist[v])continue;
+      let nearDist=Infinity;
+      for(const c of chans){const dd=Math.abs(v-c); if(dd<nearDist)nearDist=dd;}
+      err += hist[v] * nearDist * nearDist;
+    }
+    if(err<bestErr){bestErr=err; bestPal=pal;}
+  }
+  return bestPal;
+}
+function getAdaptivePalette(px, n, brightBias, keepBright){
+  let sample=0;
+  const step=Math.max(4, Math.floor(px.length/256));
+  for(let i=0;i<px.length;i+=step) sample=(sample*131 + px[i])>>>0;
+  const key=`${n}|${brightBias}|${keepBright}|${px.length}|${sample}`;
+  if(_adaptPalCache && _adaptPalKey===key) return _adaptPalCache;
+  _adaptPalCache=buildPaletteAdaptive(px,n,brightBias,keepBright);
+  _adaptPalKey=key;
+  return _adaptPalCache;
+}
+function invalidateAdaptiveCache(){_adaptPalCache=null; _adaptPalKey='';}
+function getPalette(pxForAuto=null){
+  const n=parseInt(document.getElementById('nColors').value);
+  const darkestVal=parseInt(document.getElementById('bFloor').value);
+  const brightBias=parseInt(document.getElementById('bBias').value);
+  const keepBright=parseInt(document.getElementById('bHold').value);
+  const autoOn=document.getElementById('autoOptimize') && document.getElementById('autoOptimize').checked;
+  if(autoOn && pxForAuto) return getAdaptivePalette(pxForAuto, n, brightBias, keepBright);
+  return buildPalette(n, darkestVal, brightBias, keepBright);
+}
+function updateAutoBadge(pal=null){
+  const autoOn=document.getElementById('autoOptimize') && document.getElementById('autoOptimize').checked;
+  const badge=document.getElementById('optBadge');
+  const floorWrap=document.getElementById('bFloor').closest('.s-item');
+  floorWrap.classList.toggle('dim-when-auto', autoOn);
+  if(autoOn){
+    badge.style.display='inline-block';
+    badge.textContent = pal ? `auto floor ${pal.darkest}` : 'auto';
+  } else {
+    badge.style.display='none';
+    badge.textContent='';
+  }
+}
+
+// ── safeMax calc (v7 exact) ────────────────────────────────────────────────
+function calcSafeMax(pal, userOverride){
+  if(userOverride!==null) return userOverride;
+  const cg=Math.round(100000*pal.gamma/2.2);
+  const de=100000/cg;
+  const v=Math.floor(255*Math.pow(0.5/255,1/de));
+  return Math.min(v,252);
+}
+
+// ── v7 dithering (gammaFS) — tint 지원 버전 ───────────────────────────────
+// tintMax: [rMax, gMax, bMax] — 각 채널의 상단 저장값 (기본 255,255,255)
+// 채널별 상단값을 낮추면 해당 채널이 억제되어 보색 철망색이 됨
+// 예) tintMax=[200,255,255] → R채널 억제 → 청록색 철망
+function gammaTintFS(px, W, H, pal, tintMax, leakCompPx=null, leakStrengthPct=0){
+  const{invG,n}=pal;
+
+  // 채널별 팔레트 생성: 각 채널의 상단값을 topVal로 두고
+  // [topVal-n+1 .. topVal] 범위의 n단계를 사용한다.
+  // 이렇게 해야 topVal을 255보다 낮춰도 팔레트가 붕괴하지 않는다.
+  const chansets = tintMax.map(topVal => {
+    const top = Math.max(n-1, Math.min(255, topVal));
+    const start = Math.max(0, top - (n - 1));
+    const chs = [];
+    for(let i=0; i<n; i++) chs.push(start + i);
+    return chs;
+  });
+
+  const buf=new Float32Array(W*H*3), out=new Uint8Array(W*H*4);
+  for(let i=0,p=0;i<W*H;i++,p+=4){buf[i*3]=px[p];buf[i*3+1]=px[p+1];buf[i*3+2]=px[p+2];}
+  const ae=(x,y,c,e)=>{if(x>=0&&x<W&&y>=0&&y<H)buf[(y*W+x)*3+c]+=e;};
+
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+    const bi=(y*W+x)*3,pi=(y*W+x)*4;
+    for(let c=0;c<3;c++){
+      const cs = chansets[c];
+      // decoded values for this channel's palette
+      const decodedCs = cs.map(s => s===0?0 : Math.round(255*Math.pow(s/255, invG)));
+      const mn=decodedCs[0], mx=decodedCs[decodedCs.length-1];
+      const voRaw=Math.max(mn, Math.min(mx, buf[bi+c]));
+      let vo=compensateStageDarkening(biasTowardBright(voRaw,mn,mx,pal.biasExp),mn,mx,pal);
+      if(leakCompPx && leakStrengthPct>0){
+        const lp=pi;
+        vo=applyBLeakQuantComp(vo,mn,mx,leakCompPx,lp,c,leakStrengthPct);
+      }
+      // find nearest in decoded space
+      let bestS=cs[0], bestDec=decodedCs[0], bestErr=Math.abs(vo-decodedCs[0]);
+      for(let k=1;k<cs.length;k++){
+        const e=Math.abs(vo-decodedCs[k]);
+        if(e<bestErr){bestErr=e;bestS=cs[k];bestDec=decodedCs[k];}
+      }
+      out[pi+c]=bestS;
+      const err=vo-bestDec;
+      ae(x+1,y,c,err*7/16);ae(x-1,y+1,c,err*3/16);ae(x,y+1,c,err*5/16);ae(x+1,y+1,c,err*1/16);
+    }
+    out[pi+3]=255;
+  }
+  return out;
+}
+
+// tint color hex → 채널별 상단 저장값 계산
+function getTintMax(){
+  const hex=document.getElementById('tintColor').value;
+  const n=parseInt(hex.replace('#',''),16);
+  const r=(n>>16)&255, g=(n>>8)&255, b=n&255;
+  const nC=parseInt(document.getElementById('nColors').value);
+  const minTop=255-nC+1;
+  const scale=v=>Math.max(minTop, Math.round(minTop + (255-minTop)*(v/255)));
+  return[scale(r),scale(g),scale(b)];
+}
+
+function compressToSafe(v, safeMax, boostPct){
+  const contrast=Math.max(0.6, boostPct/100);
+  const x=v/255;
+  const y=Math.pow(x, 1/contrast);
+  return Math.max(0, Math.min(safeMax, Math.round(y*safeMax)));
+}
+
+function biasTowardBright(vo, mn, mx, biasExp){
+  if(mx<=mn) return vo;
+  const t=Math.max(0,Math.min(1,(vo-mn)/(mx-mn)));
+  return mn + (mx-mn) * Math.pow(t, biasExp);
+}
+
+function compensateStageDarkening(vo, mn, mx, pal){
+  if(mx<=mn) return vo;
+  const hold=(pal.keepBright||0)/100;
+  if(hold<=0 || pal.n<=2) return vo;
+  const stage=(pal.n-2)/6; // 2..8 -> 0..1
+  let t=Math.max(0,Math.min(1,(vo-mn)/(mx-mn)));
+  // High stage counts add darker intermediate colors; lift low/mid tones
+  // so perceived brightness stays closer to low-stage results.
+  const shadow=1-t;
+  const mid=t*(1-t)*4;
+  const lift=hold*stage*(0.10*shadow + 0.16*mid + 0.05*shadow*shadow);
+  t=Math.max(0,Math.min(1, t + lift));
+  return mn + (mx-mn)*t;
+}
+
+function liftMidtone(v, liftPct){
+  if(liftPct===100)return v;
+  const exp=100/Math.max(100,liftPct);
+  return Math.max(0,Math.min(255,Math.round(255*Math.pow(v/255,exp))));
+}
+
+function clamp255(v){return Math.max(0,Math.min(255,Math.round(v)));}
+function luminance(r,g,b){return 0.299*r+0.587*g+0.114*b;}
+function preprocessB(px, liftPct, satPct, contrastPct){
+  if(liftPct===100 && satPct===100 && contrastPct===100)return px;
+  const out=new Uint8Array(px.length);
+  const satCap=Math.min(1.18, Math.max(0.7, satPct/100));
+  const conCap=Math.min(1.15, Math.max(0.7, contrastPct/100));
+  for(let i=0;i<px.length;i+=4){
+    let r=px[i], g=px[i+1], b=px[i+2];
+    const y=luminance(r,g,b);
+    const mx=Math.max(r,g,b), mn=Math.min(r,g,b);
+    const chroma=mx-mn;
+    const wLum=clamp((255-y)/120,0,1);
+    const wChr=clamp(chroma/96,0,1);
+    const subjW=clamp(wLum*0.62 + wChr*0.72,0,1);
+    const liftEff = 1 + (Math.max(1,liftPct/100)-1) * (0.30 + 0.70*subjW);
+    const satEff  = 1 + (satCap-1) * subjW;
+    const conEff  = 1 + (conCap-1) * subjW * 0.75;
+
+    r=liftMidtone(r, liftEff*100);
+    g=liftMidtone(g, liftEff*100);
+    b=liftMidtone(b, liftEff*100);
+
+    const yy=luminance(r,g,b);
+    r = yy + (r-yy)*satEff;
+    g = yy + (g-yy)*satEff;
+    b = yy + (b-yy)*satEff;
+    r = 127.5 + (r-127.5)*conEff;
+    g = 127.5 + (g-127.5)*conEff;
+    b = 127.5 + (b-127.5)*conEff;
+    out[i]=clamp255(r);
+    out[i+1]=clamp255(g);
+    out[i+2]=clamp255(b);
+    out[i+3]=255;
+  }
+  return out;
+}
+
+function makeBayer(size){
+  if(size===1)return [[0]];
+  const prev=makeBayer(size>>1), out=Array.from({length:size},()=>Array(size).fill(0));
+  for(let y=0;y<size>>1;y++)for(let x=0;x<size>>1;x++){
+    const v=prev[y][x]*4;
+    out[y][x]=v;
+    out[y][x+(size>>1)]=v+2;
+    out[y+(size>>1)][x]=v+3;
+    out[y+(size>>1)][x+(size>>1)]=v+1;
+  }
+  return out;
+}
+const BAYER_CACHE={2:makeBayer(2),4:makeBayer(4),8:makeBayer(8)};
+const BLUE8=[[0,52,11,51,2,54,9,48],[32,21,39,16,34,22,37,18],[12,45,7,40,14,46,4,42],[60,27,59,28,62,25,56,30],[3,55,8,49,1,53,10,50],[35,23,36,19,33,20,38,17],[15,47,5,43,13,44,6,41],[63,24,57,31,61,26,58,29]];
+function getBayer(size){return BAYER_CACHE[size]||BAYER_CACHE[8];}
+function getMoireParams(guard, blockSize){
+  const blurAdd=[0,0.08,0.18,0.32];
+  const simMul=[1,1.08,1.18,1.30];
+  const jitter=[0,0.10,0.22,0.36];
+  return {
+    aBlurAdd:blockSize*blurAdd[guard]*0.35,
+    bBlurAdd:blockSize*blurAdd[guard],
+    simMul:simMul[guard],
+    jitterAmp:jitter[guard]
+  };
+}
+function rotateXY(x,y,size,rot){
+  switch(rot&3){
+    case 1:return[size-1-y,x];
+    case 2:return[size-1-x,size-1-y];
+    case 3:return[y,size-1-x];
+    default:return[x,y];
+  }
+}
+
+function clamp(v,lo,hi){return Math.max(lo,Math.min(hi,v));}
+function hash01(x,y,seed=0){
+  let h=(Math.imul(x^seed,0x1f123bb5)^Math.imul(y+seed*13,0x59c3af2d))|0;
+  h^=h>>>15; h=Math.imul(h,0x2c1b3c6d); h^=h>>>12; h=Math.imul(h,0x297a2d39); h^=h>>>15;
+  return (h>>>0)/4294967296;
+}
+function patternRank(x,y,size,patternMode,moireGuard=0){
+  const tile=Math.max(1,size);
+  const tx=Math.floor(x/tile), ty=Math.floor(y/tile);
+  const mapSize=8;
+  let lx = tx & (mapSize-1);
+  let ly = ty & (mapSize-1);
+  const mx = tx >> 3;
+  const my = ty >> 3;
+  const mp = getMoireParams(moireGuard, tile);
+
+  if(patternMode===1){
+    const rot = (mx*3 + my) & 3;
+    const rr = rotateXY(lx, ly, mapSize, rot);
+    lx = rr[0]; ly = rr[1];
+  } else if(patternMode===2){
+    const rot = ((mx*5 + my*3) ^ ((mx+my)&3)) & 3;
+    const rr = rotateXY(lx, ly, mapSize, rot);
+    const sx=((mx*3 + my) + Math.floor(hash01(mx,my,71)*mapSize*mp.jitterAmp)) & (mapSize-1);
+    const sy=((mx + my*5) + Math.floor(hash01(mx,my,29)*mapSize*mp.jitterAmp)) & (mapSize-1);
+    lx = (rr[0] + sx) & (mapSize-1);
+    ly = (rr[1] + sy) & (mapSize-1);
+  } else if(patternMode===3){
+    const rot = ((mx*7 + my*11) ^ ((mx*2+my*3)&3)) & 3;
+    const rr = rotateXY(lx, ly, mapSize, rot);
+    const sx=(Math.floor(hash01(mx,my,91)*mapSize) + ((mx*5 + my*3)&7)) & 7;
+    const sy=(Math.floor(hash01(mx,my,57)*mapSize) + ((mx*3 + my*5)&7)) & 7;
+    lx = (rr[0] + sx) & 7;
+    ly = (rr[1] + sy) & 7;
+  }
+
+  const map = patternMode===3 ? BLUE8 : getBayer(mapSize);
+  let rank = (map[ly][lx] + 0.5) / (mapSize * mapSize);
+  if(patternMode>=2){
+    rank += (hash01(tx,ty,17+moireGuard*19)-0.5) * ((patternMode===3?0.26:0.10)/(mapSize*mapSize)) * (1 + mp.jitterAmp*1.6);
+  }
+  return rank;
+}
+function isAPixelPattern(x, y, blockSize, mixMode, patternMode, moireGuard=0){
+  const keepA = mixMode===1 ? 0.75 : 0.5;
+  return patternRank(x,y,blockSize,patternMode,moireGuard) < keepA;
+}
+
+function blurCanvasToData(srcCanvas, W, H, blurPx){
+  const ctx=srcCanvas.getContext('2d');
+  if(!blurPx || blurPx<0.1){
+    return ctx.getImageData(0,0,W,H).data;
+  }
+  const tmp=document.createElement('canvas');
+  tmp.width=W; tmp.height=H;
+  const tctx=tmp.getContext('2d');
+  tctx.filter=`blur(${blurPx.toFixed(2)}px)`;
+  tctx.drawImage(srcCanvas,0,0,W,H);
+  tctx.filter='none';
+  return tctx.getImageData(0,0,W,H).data;
+}
+function expandTileAverage(px, W, H, tileSize){
+  tileSize=Math.max(1, Math.round(tileSize));
+  if(tileSize<=1)return new Uint8Array(px);
+  const out=new Uint8Array(W*H*4);
+  for(let ty=0; ty<H; ty+=tileSize){
+    for(let tx=0; tx<W; tx+=tileSize){
+      let sr=0,sg=0,sb=0,c=0;
+      const y2=Math.min(H,ty+tileSize), x2=Math.min(W,tx+tileSize);
+      for(let y=ty;y<y2;y++)for(let x=tx;x<x2;x++){
+        const p=(y*W+x)*4; sr+=px[p]; sg+=px[p+1]; sb+=px[p+2]; c++;
+      }
+      const r=Math.round(sr/c), g=Math.round(sg/c), b=Math.round(sb/c);
+      for(let y=ty;y<y2;y++)for(let x=tx;x<x2;x++){
+        const p=(y*W+x)*4; out[p]=r; out[p+1]=g; out[p+2]=b; out[p+3]=255;
+      }
+    }
+  }
+  return out;
+}
+function getGhostParams(guard, blockSize){
+  const aBlurMul=[0,0.25,0.45,0.7];
+  const bBlurMul=[0,0.08,0.14,0.22];
+  const aTileMul=[1,1,2,2];
+  const bTileMul=[1,1,1,2];
+  return {
+    aBlur:blockSize*aBlurMul[guard],
+    bBlur:blockSize*bBlurMul[guard],
+    aTile:Math.max(1, Math.round(blockSize*aTileMul[guard])),
+    bTile:Math.max(1, Math.round(blockSize*bTileMul[guard]))
+  };
+}
+function prepareEncodeProxyFromCanvas(srcCanvas, W, H, blurPx, tileSize){
+  const d=blurCanvasToData(srcCanvas,W,H,blurPx);
+  return expandTileAverage(d,W,H,tileSize);
+}
+
+function buildMaskBinary(W,H,blockSize,mixMode,patternMode,moireGuard=0){
+  const out=new Uint8Array(W*H);
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++) out[y*W+x]=isAPixelPattern(x,y,blockSize,mixMode,patternMode,moireGuard)?1:0;
+  return out;
+}
+
+// ── 위장 마스크용 루미넌스 맵 (캔버스 blur 이용) ──────────────────────────────
+function computeLumMapBlurred(px, W, H, blurPx){
+  const src=document.createElement('canvas'); src.width=W; src.height=H;
+  src.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(px),W,H),0,0);
+  const tmp=document.createElement('canvas'); tmp.width=W; tmp.height=H;
+  const tctx=tmp.getContext('2d');
+  if(blurPx>0.5){ tctx.filter=`blur(${blurPx.toFixed(2)}px)`; }
+  tctx.drawImage(src,0,0); tctx.filter='none';
+  const id=tctx.getImageData(0,0,W,H).data;
+  const out=new Float32Array(W*H);
+  for(let i=0;i<W*H;i++) out[i]=luminance(id[i*4],id[i*4+1],id[i*4+2]);
+  return out;
+}
+
+// ── 콘텐츠 적응형 마스크 ──────────────────────────────────────────────────────
+// 핵심 전략:
+//   · A밝은곳 → B픽셀 우선 (B저장값252 vs A밝기200 → 대비 작아 철망 안 보임)
+//   · A어두운곳 → A픽셀 우선 (어두운 배경에 흰 철망이 나타나지 않음)
+//   · B밝은곳 → B픽셀 우선 (B 밝은 영역 커버리지 보전)
+function buildMaskAdaptiveContent(W,H,aLumMap,bLumMap,blockSize,mixMode,patternMode,moireGuard,camoufStrength){
+  const out=new Uint8Array(W*H);
+  const keepA=mixMode===1?0.75:0.5;
+  const str=camoufStrength/100;
+
+  // 전체 평균 루미넌스 계산 (bias 기준점)
+  let sumA=0, sumB=0;
+  for(let i=0;i<W*H;i++){sumA+=aLumMap[i]; sumB+=bLumMap[i];}
+  const meanA=sumA/(W*H*255), meanB=sumB/(W*H*255);
+
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+    const i=y*W+x;
+    const aLum=aLumMap[i]/255; // 0=검정, 1=흰색 (A 저장값 기준)
+    const bLum=bLumMap[i]/255; // 0=검정, 1=흰색 (B 디코드값 기준)
+
+    // bias 계산:
+    //   A가 밝을수록 → threshold 감소 → B픽셀 배치 확률 증가
+    //   B가 밝을수록 → threshold 감소 → B픽셀 배치 확률 증가 (B 커버리지)
+    //   두 효과를 가중 합산, 합계가 0이 되도록 평균 기준으로 정규화
+    const aBias=-(aLum-meanA)*str*0.55; // A밝음 → threshold 낮춤 → B픽셀 ↑
+    const bBias=-(bLum-meanB)*str*0.30; // B밝음 → threshold 낮춤 → B픽셀 ↑
+    const effThresh=clamp(keepA+aBias+bBias, 0.05, 0.95);
+
+    const rank=patternRank(x,y,blockSize,patternMode,moireGuard);
+    out[i]=rank<effThresh?1:0; // 1=A픽셀
+  }
+  return out;
+}
+function applyMaskRGBA(px, mask, keepA){
+  const out=new Uint8Array(px.length);
+  for(let i=0,j=0;i<px.length;i+=4,j++) {
+    const on = keepA ? mask[j] : (1-mask[j]);
+    if(on){
+      out[i]=px[i]; out[i+1]=px[i+1]; out[i+2]=px[i+2];
+    }
+    out[i+3]=255;
+  }
+  return out;
+}
+function blurRGBA(px,W,H,blurPx){
+  if(!blurPx || blurPx<0.1)return new Uint8Array(px);
+  const src=document.createElement('canvas');src.width=W;src.height=H;
+  src.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(px),W,H),0,0);
+  const tmp=document.createElement('canvas');tmp.width=W;tmp.height=H;
+  const tctx=tmp.getContext('2d');
+  tctx.filter=`blur(${blurPx.toFixed(2)}px)`;
+  tctx.drawImage(src,0,0,W,H);
+  tctx.filter='none';
+  return new Uint8Array(tctx.getImageData(0,0,W,H).data);
+}
+function decodeStoredRGBA(px, decodeExp){
+  const out=new Uint8Array(px.length);
+  for(let i=0;i<px.length;i+=4){
+    out[i]=clamp255(255*Math.pow(px[i]/255,decodeExp));
+    out[i+1]=clamp255(255*Math.pow(px[i+1]/255,decodeExp));
+    out[i+2]=clamp255(255*Math.pow(px[i+2]/255,decodeExp));
+    out[i+3]=255;
+  }
+  return out;
+}
+function buildSafeStored(pxA,W,H,safeMax,aBoost){
+  const out=new Uint8Array(W*H*4);
+  for(let i=0;i<pxA.length;i+=4){
+    out[i]=compressToSafe(pxA[i],safeMax,aBoost);
+    out[i+1]=compressToSafe(pxA[i+1],safeMax,aBoost);
+    out[i+2]=compressToSafe(pxA[i+2],safeMax,aBoost);
+    out[i+3]=255;
+  }
+  return out;
+}
+function subtractLeak(targetPx, leakPx, strengthPct, lumaWeight){
+  if(strengthPct<=0)return new Uint8Array(targetPx);
+  const out=new Uint8Array(targetPx.length);
+  const k=Math.max(0, strengthPct/100);
+  for(let i=0;i<targetPx.length;i+=4){
+    const leakY=luminance(leakPx[i],leakPx[i+1],leakPx[i+2])/255;
+    const w=1 + (lumaWeight-1)*leakY;
+    out[i]=clamp255(targetPx[i]-leakPx[i]*k*w);
+    out[i+1]=clamp255(targetPx[i+1]-leakPx[i+1]*k*w);
+    out[i+2]=clamp255(targetPx[i+2]-leakPx[i+2]*k*w);
+    out[i+3]=255;
+  }
+  return out;
+}
+function applyBLeakQuantComp(vo, mn, mx, leakPx, lp, c, strengthPct){
+  if(!leakPx || strengthPct<=0 || mx<=mn) return vo;
+  const leakY=luminance(leakPx[lp], leakPx[lp+1], leakPx[lp+2])/255;
+  const leakC=leakPx[lp+c]/255;
+  const local=clamp(leakY*0.62 + leakC*0.68, 0, 1);
+  if(local<=0.001) return vo;
+  const t=(vo-mn)/(mx-mn);
+  const k=strengthPct/100;
+  const cut=(mx-mn) * k * local * (0.10 + 0.34*local) * (0.70 + 0.30*(1-t));
+  return Math.max(mn, vo - cut);
+}
+function getLeakBlur(blockSize, patternMode, branch){
+  const base = blockSize<=1 ? 0.75 : blockSize*0.72;
+  if(branch==='A') return patternMode===2 ? base*0.95 : (patternMode===1 ? base*1.05 : base*1.12);
+  return patternMode===2 ? base*0.82 : (patternMode===1 ? base*0.9 : base*0.98);
+}
+function meanAbsError(px1, px2){
+  let s=0, n=0;
+  for(let i=0;i<px1.length && i<px2.length;i+=4){
+    s += Math.abs(px1[i]-px2[i]) + Math.abs(px1[i+1]-px2[i+1]) + Math.abs(px1[i+2]-px2[i+2]);
+    n += 3;
+  }
+  return n? (s/n) : 0;
+}
+
+// ── Core: checkerboard merge ───────────────────────────────────────────────
+function buildCheckerboard(pxA, pxB, W, H, pal, safeMax, blockSize, tintMax, aBoost, mixMode, patternMode, moireGuard=0){
+  const encB = gammaTintFS(pxB, W, H, pal, tintMax);
+  const out = new Uint8Array(W * H * 4);
+  for(let y=0; y<H; y++){
+    for(let x=0; x<W; x++){
+      const pi = (y*W+x)*4;
+      const isA = isAPixelPattern(x, y, blockSize, mixMode, patternMode, moireGuard);
+      if(isA){
+        out[pi]   = compressToSafe(pxA[pi],   safeMax, aBoost);
+        out[pi+1] = compressToSafe(pxA[pi+1], safeMax, aBoost);
+        out[pi+2] = compressToSafe(pxA[pi+2], safeMax, aBoost);
+      } else {
+        out[pi]   = encB[pi];
+        out[pi+1] = encB[pi+1];
+        out[pi+2] = encB[pi+2];
+      }
+      out[pi+3] = 255;
+    }
+  }
+  return out;
+}
+
+// ── Simulation viewers ─────────────────────────────────────────────────────
+function simRaw(data, W, H){
+  // gAMA ignore: raw pixel values
+  const cv=document.createElement('canvas');cv.width=W;cv.height=H;
+  cv.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(data),W,H),0,0);
+  return cv;
+}
+function simGama(data, W, H, decodeExp){
+  // gAMA apply: each channel^decodeExp
+  const cv=document.createElement('canvas');cv.width=W;cv.height=H;
+  const ctx=cv.getContext('2d'),id=ctx.createImageData(W,H);
+  for(let i=0;i<data.length;i+=4){
+    for(let c=0;c<3;c++){
+      const s=data[i+c];
+      id.data[i+c]=s===0?0:Math.round(255*Math.pow(s/255,decodeExp));
+    }
+    id.data[i+3]=255;
+  }
+  ctx.putImageData(id,0,0);return cv;
+}
+
+function simGamaInterpolated(data, W, H, decodeExp, blockSize, patternMode, moireGuard=0){
+  // 뷰어 보간 흉내: gAMA 디코드 후, blockSize 기반으로 약하게 블러
+  const base=simGama(data,W,H,decodeExp);
+  const cv=document.createElement('canvas');cv.width=W;cv.height=H;
+  const ctx=cv.getContext('2d');
+  ctx.imageSmoothingEnabled=true;
+  const mp=getMoireParams(moireGuard, blockSize);
+  const blurBase = patternMode===3 ? blockSize*0.48 : (patternMode===2 ? blockSize*0.55 : (patternMode===1 ? blockSize*0.62 : blockSize*0.72));
+  const blur=Math.max(1, Math.round(blurBase * mp.simMul));
+  ctx.filter=`blur(${blur}px)`;
+  ctx.drawImage(base,0,0);
+  ctx.filter='none';
+  return cv;
+}
+
+// ── File I/O ───────────────────────────────────────────────────────────────
+['A','B'].forEach(id=>{
+  const z=document.getElementById('z'+id);
+  document.getElementById('f'+id).addEventListener('change',e=>{if(e.target.files[0])loadFile(e.target.files[0],id);});
+  z.addEventListener('dragover',e=>{e.preventDefault();z.classList.add('over');});
+  z.addEventListener('dragleave',()=>z.classList.remove('over'));
+  z.addEventListener('drop',e=>{e.preventDefault();z.classList.remove('over');const f=e.dataTransfer.files[0];if(f&&f.type.startsWith('image/'))loadFile(f,id);});
+});
+function loadFile(file,id){
+  const r=new FileReader();
+  r.onload=e=>{const img=new Image();img.onload=()=>{if(id==='A')imgA=img;else imgB=img;showPrev(e.target.result,id);checkReady();schedPrev();};img.src=e.target.result;};
+  r.readAsDataURL(file);
+}
+function showPrev(src,id){
+  document.getElementById('pv'+id).src=src;document.getElementById('pv'+id).style.display='block';
+  document.getElementById('ph'+id).style.display='none';document.getElementById('rm'+id).style.display='flex';
+  document.getElementById('z'+id).classList.add('loaded');
+}
+function rmImg(e,id){
+  e.stopPropagation();
+  if(id==='A')imgA=null;else imgB=null;
+  document.getElementById('pv'+id).style.display='none';document.getElementById('ph'+id).style.display='';
+  document.getElementById('rm'+id).style.display='none';document.getElementById('z'+id).classList.remove('loaded');
+  document.getElementById('f'+id).value='';checkReady();
+  if(!imgA&&!imgB)document.getElementById('previewArea').style.display='none';
+}
+function checkReady(){document.getElementById('goBtn').disabled=!(imgA&&imgB);}
+function applyPreset1(){
+  const preset={
+    nColors:8,
+    bFloor:40,
+    bBias:125,
+    bHold:85,
+    autoOptimize:false,
+    tintColor:'#ffffff',
+    mixMode:0,
+    blockSize:2,
+    patternMode:2,
+    ghostGuard:1,
+    moireGuard:1,
+    camoufStrength:55,
+    aLeakCut:25,
+    bLeakCut:25,
+    borderVal:10,
+    safeMaxVal:200,
+    aBoost:100,
+    bLift:130,
+    bSat:120,
+    bContrast:110
+  };
+  for(const [id,val] of Object.entries(preset)){
+    const el=document.getElementById(id);
+    if(!el) continue;
+    if(el.type==='checkbox') el.checked=!!val;
+    else el.value=val;
+  }
+  invalidateAdaptiveCache();
+  updateLabels();
+  schedPrev();
+}
+function applyPreset2(){
+  const preset={
+    nColors:8,
+    bFloor:40,
+    bBias:80,
+    bHold:20,
+    autoOptimize:false,
+    tintColor:'#ffffff',
+    mixMode:0,
+    blockSize:2,
+    patternMode:2,
+    ghostGuard:1,
+    moireGuard:1,
+    camoufStrength:55,
+    aLeakCut:25,
+    bLeakCut:25,
+    borderVal:10,
+    safeMaxVal:200,
+    aBoost:100,
+    bLift:130,
+    bSat:110,
+    bContrast:110
+  };
+  for(const [id,val] of Object.entries(preset)){
+    const el=document.getElementById(id);
+    if(!el) continue;
+    if(el.type==='checkbox') el.checked=!!val;
+    else el.value=val;
+  }
+  invalidateAdaptiveCache();
+  updateLabels();
+  schedPrev();
+}
+function resetAll(){rmImg({stopPropagation:()=>{}},'A');rmImg({stopPropagation:()=>{}},'B');document.getElementById('resultPanel').classList.remove('show');resultBlob=null;}
+
+// ── Controls ───────────────────────────────────────────────────────────────
+['nColors','bFloor','bBias','bHold','blockSize','borderVal','safeMaxVal','aBoost','mixMode','patternMode','ghostGuard','moireGuard','camoufStrength','aLeakCut','bLeakCut','bLift','bSat','bContrast'].forEach(id=>document.getElementById(id).addEventListener('input',()=>{if(['nColors','bBias','bHold','bLift','bSat','bContrast'].includes(id)) invalidateAdaptiveCache(); updateLabels();schedPrev();}));
+document.getElementById('tintColor').addEventListener('input',()=>{updateLabels();schedPrev();});
+document.getElementById('autoOptimize').addEventListener('change',()=>{invalidateAdaptiveCache(); updateLabels(); schedPrev();});
+const BLOCK_LABELS=['','1×1px','2×2px','4×4px','8×8px'];
+function updateLabels(){
+  const n=parseInt(document.getElementById('nColors').value);
+  const b=parseInt(document.getElementById('blockSize').value);
+  const border=parseInt(document.getElementById('borderVal').value);
+  const sm=parseInt(document.getElementById('safeMaxVal').value);
+  const aBoost=parseInt(document.getElementById('aBoost').value);
+  const bFloor=parseInt(document.getElementById('bFloor').value);
+  const bBias=parseInt(document.getElementById('bBias').value);
+  const bHold=parseInt(document.getElementById('bHold').value);
+  const bLift=parseInt(document.getElementById('bLift').value);
+  const bSat=parseInt(document.getElementById('bSat').value);
+  const bContrast=parseInt(document.getElementById('bContrast').value);
+  const mixMode=parseInt(document.getElementById('mixMode').value);
+  const patternMode=parseInt(document.getElementById('patternMode').value);
+  const ghostGuard=parseInt(document.getElementById('ghostGuard').value);
+  const moireGuard=parseInt(document.getElementById('moireGuard').value);
+  const aLeakCut=parseInt(document.getElementById('aLeakCut').value);
+  const bLeakCut=parseInt(document.getElementById('bLeakCut').value);
+  const camoufStrength=parseInt(document.getElementById('camoufStrength').value);
+  document.getElementById('nColorsDisp').textContent=n+'단계 ('+n+'³='+(n**3)+'색)';
+  document.getElementById('blockDisp').textContent=(BLOCK_LABELS[b]||b+'px') + (patternMode===3?' · 블루노이즈 직조':(patternMode===2?' · 분산 직조':(patternMode===1?' · 회전 직조':' · 기본 블록')));
+  document.getElementById('borderDisp').textContent=border===0?'0px (없음)':border+'px';
+  document.getElementById('safeMaxDisp').textContent=sm;
+  document.getElementById('aBoostDisp').textContent=aBoost+'%';
+  document.getElementById('bFloorDisp').textContent=bFloor;
+  document.getElementById('bBiasDisp').textContent=bBias+'%';
+  document.getElementById('bHoldDisp').textContent=bHold+'%';
+  document.getElementById('bLiftDisp').textContent=bLift+'%';
+  document.getElementById('bSatDisp').textContent=bSat+'%';
+  document.getElementById('bContrastDisp').textContent=bContrast+'%';
+  document.getElementById('mixModeDisp').textContent=mixMode===1?'A 우선 3:1':'1:1 균형';
+  document.getElementById('patternModeDisp').textContent=(patternMode===3?'블루노이즈 직조':(patternMode===2?'분산 직조':(patternMode===1?'회전 직조':'기본 블록')));
+  document.getElementById('moireGuardDisp').textContent=(['끔','약하게','중간','강하게'][moireGuard]);
+  document.getElementById('ghostGuardDisp').textContent=(['끔','약하게','중간','강하게'][ghostGuard]);
+  document.getElementById('aLeakCutDisp').textContent=aLeakCut+'%';
+  document.getElementById('bLeakCutDisp').textContent=bLeakCut+'%';
+  document.getElementById('camoufStrengthDisp').textContent=camoufStrength+'%';
+  if(camoufStrength===0){
+    document.getElementById('camoufInfo').textContent='위장 OFF · 기본 블루노이즈 균등 배치';
+  } else if(camoufStrength<40){
+    document.getElementById('camoufInfo').textContent=`약한 위장 · A밝은곳→B집중 / A어두운곳→A집중 (강도 ${camoufStrength}%)`;
+  } else if(camoufStrength<75){
+    document.getElementById('camoufInfo').textContent=`중간 위장 · 어두운A영역 철망 상당히 억제 (강도 ${camoufStrength}%)`;
+  } else {
+    document.getElementById('camoufInfo').textContent=`강한 위장 · 철망 최소화 · B커버리지 불균등 주의 (강도 ${camoufStrength}%)`;
+  }
+  const tm=getTintMax();
+  document.getElementById('tintInfo').textContent=`채널 상단값: R${tm[0]} G${tm[1]} B${tm[2]} · 바닥 ${bFloor} · 편향 ${bBias}% · 유지 ${bHold}%`;
+  updateAutoBadge(_adaptPalCache);
+}
+function schedPrev(){clearTimeout(prevTimer);prevTimer=setTimeout(runPreview,350);}
+
+function runPreview(){
+  if(!imgA||!imgB)return;
+  const safeMax=parseInt(document.getElementById('safeMaxVal').value);
+  const blockSize=[1,1,2,4,8][parseInt(document.getElementById('blockSize').value)];
+  const tintMax=getTintMax();
+  const aBoost=parseInt(document.getElementById('aBoost').value);
+  const bLift=parseInt(document.getElementById('bLift').value);
+  const bSat=parseInt(document.getElementById('bSat').value);
+  const bContrast=parseInt(document.getElementById('bContrast').value);
+  const patternMode=parseInt(document.getElementById('patternMode').value);
+  const ghostGuard=parseInt(document.getElementById('ghostGuard').value);
+  const moireGuard=parseInt(document.getElementById('moireGuard').value);
+  const aLeakCut=parseInt(document.getElementById('aLeakCut').value);
+  const bLeakCut=parseInt(document.getElementById('bLeakCut').value);
+  const mixMode=parseInt(document.getElementById('mixMode').value);
+  const camoufStrength=parseInt(document.getElementById('camoufStrength').value);
+  const PREV_W=160;
+  const pH=Math.round(PREV_W*imgA.naturalHeight/imgA.naturalWidth);
+  const cvA=document.getElementById('cvA'),cvB=document.getElementById('cvB');
+  cvA.width=cvB.width=PREV_W;cvA.height=cvB.height=pH;
+  cvA.getContext('2d').drawImage(imgA,0,0,PREV_W,pH);
+  cvB.getContext('2d').drawImage(imgB,0,0,PREV_W,pH);
+
+  const gp=getGhostParams(ghostGuard,blockSize);
+  const mp=getMoireParams(moireGuard,blockSize);
+  const pxAProxy=prepareEncodeProxyFromCanvas(cvA,PREV_W,pH,gp.aBlur+mp.aBlurAdd,gp.aTile);
+  const pxBProxy=prepareEncodeProxyFromCanvas(cvB,PREV_W,pH,gp.bBlur+mp.bBlurAdd,gp.bTile);
+  const bTarget=preprocessB(pxBProxy,bLift,bSat,bContrast);
+  const pal=getPalette(bTarget);
+  updateAutoBadge(pal);
+
+  // 위장 마스크
+  const camoufBlurR=Math.max(2,blockSize*4);
+  let maskA;
+  if(camoufStrength>0){
+    const aLumMap=computeLumMapBlurred(pxAProxy,PREV_W,pH,camoufBlurR);
+    const bLumMap=computeLumMapBlurred(bTarget,PREV_W,pH,camoufBlurR);
+    maskA=buildMaskAdaptiveContent(PREV_W,pH,aLumMap,bLumMap,blockSize,mixMode,patternMode,moireGuard,camoufStrength);
+  } else {
+    maskA=buildMaskBinary(PREV_W,pH,blockSize,mixMode,patternMode,moireGuard);
+  }
+
+  const baseEncB=gammaTintFS(bTarget,PREV_W,pH,pal,tintMax);
+  const bLeakRaw=blurRGBA(applyMaskRGBA(baseEncB,maskA,false),PREV_W,pH,getLeakBlur(blockSize,patternMode,'A'));
+  const aCompProxy=subtractLeak(pxAProxy,bLeakRaw,aLeakCut,1.15);
+
+  const aSafe=buildSafeStored(aCompProxy,PREV_W,pH,safeMax,aBoost);
+  const aLeakDecoded=blurRGBA(decodeStoredRGBA(applyMaskRGBA(aSafe,maskA,true),pal.decodeExp),PREV_W,pH,getLeakBlur(blockSize,patternMode,'B'));
+  const bCompTarget=subtractLeak(bTarget,aLeakDecoded,Math.round(bLeakCut*0.35),0.95);
+  const encBFinal=gammaTintFS(bCompTarget,PREV_W,pH,pal,tintMax,aLeakDecoded,bLeakCut);
+
+  const combined=buildCheckerboardFromEncB(aCompProxy,encBFinal,PREV_W,pH,safeMax,blockSize,aBoost,mixMode,patternMode,moireGuard);
+  const sA=simRaw(combined,PREV_W,pH);
+  const sB=simGamaInterpolated(combined,PREV_W,pH,pal.decodeExp,blockSize,patternMode,moireGuard);
+  const simA=document.getElementById('simA'),simB=document.getElementById('simB');
+  simA.width=simB.width=PREV_W;simA.height=simB.height=pH;
+  simA.getContext('2d').drawImage(sA,0,0);simB.getContext('2d').drawImage(sB,0,0);
+  document.getElementById('previewArea').style.display='block';
+}
+
+// ── Generate ───────────────────────────────────────────────────────────────
+async function generate(){
+  if(!imgA||!imgB)return;
+  document.getElementById('goBtn').disabled=true;
+  setProg(true,'설정 계산 중...',5);await tick();
+
+  const safeMax=parseInt(document.getElementById('safeMaxVal').value);
+  const blockSizeIdx=parseInt(document.getElementById('blockSize').value);
+  const blockSize=[1,1,2,4,8][blockSizeIdx];
+  const border=parseInt(document.getElementById('borderVal').value);
+  const n=parseInt(document.getElementById('nColors').value);
+  const tintMax=getTintMax();
+  const aBoost=parseInt(document.getElementById('aBoost').value);
+  const bLift=parseInt(document.getElementById('bLift').value);
+  const bSat=parseInt(document.getElementById('bSat').value);
+  const bContrast=parseInt(document.getElementById('bContrast').value);
+  const patternMode=parseInt(document.getElementById('patternMode').value);
+  const ghostGuard=parseInt(document.getElementById('ghostGuard').value);
+  const moireGuard=parseInt(document.getElementById('moireGuard').value);
+  const aLeakCut=parseInt(document.getElementById('aLeakCut').value);
+  const bLeakCut=parseInt(document.getElementById('bLeakCut').value);
+  const mixMode=parseInt(document.getElementById('mixMode').value);
+  const camoufStrength=parseInt(document.getElementById('camoufStrength').value);
+
+  const W=Math.min(imgA.naturalWidth,imgB.naturalWidth);
+  const H=Math.min(imgA.naturalHeight,imgB.naturalHeight);
+
+  const cvA=document.getElementById('cvA'),cvB=document.getElementById('cvB');
+  cvA.width=cvB.width=W;cvA.height=cvB.height=H;
+  cvA.getContext('2d').drawImage(imgA,0,0,W,H);
+  cvB.getContext('2d').drawImage(imgB,0,0,W,H);
+
+  const gp=getGhostParams(ghostGuard,blockSize);
+  const mp=getMoireParams(moireGuard,blockSize);
+  const pxAProxy=prepareEncodeProxyFromCanvas(cvA,W,H,gp.aBlur+mp.aBlurAdd,gp.aTile);
+  const pxBProxy=prepareEncodeProxyFromCanvas(cvB,W,H,gp.bBlur+mp.bBlurAdd,gp.bTile);
+  const bTarget=preprocessB(pxBProxy,bLift,bSat,bContrast);
+  const pal=getPalette(bTarget);
+  updateAutoBadge(pal);
+
+  // ── 위장 마스크 또는 기본 마스크 선택 ──
+  setProg(true,'위장 마스크 계산...',8);await tick();
+  const camoufBlurR=Math.max(2, blockSize*4);
+  let maskA;
+  if(camoufStrength>0){
+    const aLumMap=computeLumMapBlurred(pxAProxy,W,H,camoufBlurR);
+    const bLumMap=computeLumMapBlurred(bTarget,W,H,camoufBlurR);
+    maskA=buildMaskAdaptiveContent(W,H,aLumMap,bLumMap,blockSize,mixMode,patternMode,moireGuard,camoufStrength);
+  } else {
+    maskA=buildMaskBinary(W,H,blockSize,mixMode,patternMode,moireGuard);
+  }
+
+  setProg(true,'B 기본 팔레트 계산...',12);await tick();
+  const baseEncB=gammaTintFS(bTarget,W,H,pal,tintMax);
+
+  setProg(true,'A 누출 상쇄 계산...',24);await tick();
+  const bLeakRaw=blurRGBA(applyMaskRGBA(baseEncB,maskA,false),W,H,getLeakBlur(blockSize,patternMode,'A'));
+  const aCompProxy=subtractLeak(pxAProxy,bLeakRaw,aLeakCut,1.15);
+
+  setProg(true,'B 누출 상쇄 계산...',38);await tick();
+  const aSafe=buildSafeStored(aCompProxy,W,H,safeMax,aBoost);
+  const aLeakDecoded=blurRGBA(decodeStoredRGBA(applyMaskRGBA(aSafe,maskA,true),pal.decodeExp),W,H,getLeakBlur(blockSize,patternMode,'B'));
+  const bCompTarget=subtractLeak(bTarget,aLeakDecoded,Math.round(bLeakCut*0.35),0.95);
+
+  setProg(true,'B 이미지 tint 디더링...',46);await tick();
+  const encB=await tintDitherAsync(bCompTarget,W,H,pal,tintMax,aLeakDecoded,bLeakCut);
+
+  setProg(true,'체커보드 합성...',74);await tick();
+  const combined=buildCheckerboardFromEncB(aCompProxy,encB,W,H,safeMax,blockSize,aBoost,mixMode,patternMode,moireGuard);
+
+  setProg(true,'PNG 인코딩 + 테두리 + gAMA...',84);await tick();
+  const bW=W+2*border,bH=H+2*border;
+  const cvOut=document.getElementById('cvOut');
+  cvOut.width=bW;cvOut.height=bH;
+  const ctx=cvOut.getContext('2d');
+  if(border>0){ctx.fillStyle='#000';ctx.fillRect(0,0,bW,bH);}
+  ctx.putImageData(new ImageData(new Uint8ClampedArray(combined),W,H),border,border);
+  const gamaChunk=makeGAMAChunk(pal.gamma);
+  const pngBytes=await canvasToBytes(cvOut,'image/png');
+  const finalBytes=rebuildPNGWithGAMA(pngBytes.buffer,gamaChunk);
+
+  setProg(true,'완료!',100);await tick(180);setProg(false);
+  resultBlob=new Blob([finalBytes],{type:'image/png'});
+
+  const sA=simRaw(combined,W,H);
+  const sB=simGamaInterpolated(combined,W,H,pal.decodeExp,blockSize,patternMode,moireGuard);
+  const outA=document.getElementById('outA'),outB=document.getElementById('outB');
+  outA.width=outB.width=W;outA.height=outB.height=H;
+  outA.getContext('2d').drawImage(sA,0,0);outB.getContext('2d').drawImage(sB,0,0);
+
+  const errA=meanAbsError(sA.getContext('2d').getImageData(0,0,W,H).data, pxAProxy);
+  const errB=meanAbsError(sB.getContext('2d').getImageData(0,0,W,H).data, bTarget);
+
+  document.getElementById('mRes').textContent=`${bW}×${bH}`;
+  document.getElementById('mN').textContent=`${n}단계 · 바닥 ${pal.darkest} · 편향 ${pal.brightBias}%`;
+  document.getElementById('mBlock').textContent=(BLOCK_LABELS[blockSizeIdx]||blockSize+'px');
+  document.getElementById('mPattern').textContent=(patternMode===3?'블루노이즈 직조':(patternMode===2?'분산 직조':(patternMode===1?'회전 직조':'기본 블록'))) + ' · ' + (mixMode===1?'A우선 3:1':'1:1 균형') + ' · 스무딩 ' + (['끔','약','중','강'][ghostGuard]) + ' · 모아레 ' + (['끔','약','중','강'][moireGuard]) + ' · A상쇄 ' + aLeakCut + '% · B상쇄 ' + bLeakCut + '%';
+  document.getElementById('mSafe').textContent=safeMax;
+  document.getElementById('mGamma').textContent=pal.gamma.toFixed(5);
+  document.getElementById('mErrA').textContent=errA.toFixed(1);
+  document.getElementById('mErrB').textContent=errB.toFixed(1);
+  document.getElementById('mSize').textContent=`${(finalBytes.length/1024).toFixed(1)} KB`;
+  document.getElementById('resultPanel').classList.add('show');
+  document.getElementById('resultPanel').scrollIntoView({behavior:'smooth',block:'nearest'});
+  document.getElementById('goBtn').disabled=false;
+}
+
+function buildCheckerboardFromEncB(pxA, encB, W, H, safeMax, blockSize, aBoost, mixMode, patternMode, moireGuard=0){
+  const out=new Uint8Array(W*H*4);
+  for(let y=0;y<H;y++){
+    for(let x=0;x<W;x++){
+      const pi=(y*W+x)*4;
+      const isA=isAPixelPattern(x,y,blockSize,mixMode,patternMode,moireGuard);
+      if(isA){
+        out[pi]  =compressToSafe(pxA[pi],safeMax,aBoost);
+        out[pi+1]=compressToSafe(pxA[pi+1],safeMax,aBoost);
+        out[pi+2]=compressToSafe(pxA[pi+2],safeMax,aBoost);
+      } else {
+        out[pi]  =encB[pi];
+        out[pi+1]=encB[pi+1];
+        out[pi+2]=encB[pi+2];
+      }
+      out[pi+3]=255;
+    }
+  }
+  return out;
+}
+
+async function tintDitherAsync(px,W,H,pal,tintMax,leakCompPx=null,leakStrengthPct=0){
+  return new Promise(resolve=>{
+    const{invG,n}=pal;
+    // Build per-channel stored/decoded pairs.
+    // 각 채널은 [topVal-n+1 .. topVal]의 연속 팔레트를 사용한다.
+    const chansets=tintMax.map(topVal=>{
+      const pairs=[];
+      const top=Math.max(n-1, Math.min(255, topVal));
+      const start=Math.max(0, top-(n-1));
+      for(let i=0;i<n;i++){
+        const s=start+i;
+        const dec=s===0?0:Math.round(255*Math.pow(s/255,invG));
+        pairs.push({s,dec});
+      }
+      return pairs;
+    });
+    const buf=new Float32Array(W*H*3),out=new Uint8Array(W*H*4);
+    for(let i=0,p=0;i<W*H;i++,p+=4){buf[i*3]=px[p];buf[i*3+1]=px[p+1];buf[i*3+2]=px[p+2];}
+    const ae=(x,y,c,e)=>{if(x>=0&&x<W&&y>=0&&y<H)buf[(y*W+x)*3+c]+=e;};
+    let y=0;
+    function step(){
+      const endY=Math.min(y+Math.max(1,Math.floor(H/40)),H);
+      for(;y<endY;y++)for(let x=0;x<W;x++){
+        const bi=(y*W+x)*3,pi=(y*W+x)*4;
+        for(let c=0;c<3;c++){
+          const pairs=chansets[c];
+          const mn=pairs[0].dec,mx=pairs[pairs.length-1].dec;
+          const voRaw=Math.max(mn,Math.min(mx,buf[bi+c]));
+          let vo=compensateStageDarkening(biasTowardBright(voRaw,mn,mx,pal.biasExp),mn,mx,pal);
+      if(leakCompPx && leakStrengthPct>0){
+        const lp=pi;
+        vo=applyBLeakQuantComp(vo,mn,mx,leakCompPx,lp,c,leakStrengthPct);
+      }
+          let bs=pairs[0].s,bd=pairs[0].dec,be=Math.abs(vo-pairs[0].dec);
+          for(let k=1;k<pairs.length;k++){const e=Math.abs(vo-pairs[k].dec);if(e<be){be=e;bs=pairs[k].s;bd=pairs[k].dec;}}
+          out[pi+c]=bs;
+          const err=vo-bd;
+          ae(x+1,y,c,err*7/16);ae(x-1,y+1,c,err*3/16);ae(x,y+1,c,err*5/16);ae(x+1,y+1,c,err*1/16);
+        }
+        out[pi+3]=255;
+      }
+      setProg(true,'B 이미지 tint 디더링...',15+Math.round(y/H*40));
+      if(y<H)requestAnimationFrame(step);else resolve(out);
+    }
+    requestAnimationFrame(step);
+  });
+}
+
+function canvasToBytes(canvas,mime){return new Promise(resolve=>{canvas.toBlob(blob=>blob.arrayBuffer().then(buf=>resolve(new Uint8Array(buf))),mime);});}
+function doDownload(){if(!resultBlob)return;const url=URL.createObjectURL(resultBlob);const a=document.createElement('a');a.href=url;a.download='dual_gama_v7_6_camouflage.png';a.click();setTimeout(()=>URL.revokeObjectURL(url),5000);}
+function setProg(show,label,pct){const w=document.getElementById('prog');w.classList.toggle('show',show);if(show){document.getElementById('progFill').style.width=pct+'%';document.getElementById('progTxt').textContent=label;}}
+function tick(ms=16){return new Promise(r=>setTimeout(r,ms));}
+
+updateLabels();
+
+</script>
+</body>
+</html>
