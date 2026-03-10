@@ -293,6 +293,71 @@
     </div>
   </div>
 
+  <!-- v8.0 가독성 개선 -->
+  <div class="panel">
+    <div class="p-title">v8.0 가독성 개선</div>
+    <div class="s-grid">
+      <div class="s-item">
+        <label>① 밝기 갭 축소</label>
+        <div class="opt-row">
+          <input type="checkbox" id="gapReduceOn">
+          <span class="opt-label">A저장값 하한↑, B저장값 상한↓ → 양쪽 노이즈 극단 완화</span>
+        </div>
+        <input type="range" id="gapAMin" min="0" max="80" step="1" value="30" class="dim-when-auto" style="margin-top:8px">
+        <div class="rv"><span class="rv-v" id="gapAMinDisp">30</span><span class="rv-h">A 최소 저장값 — B뷰어 검은 구멍 방지</span></div>
+        <input type="range" id="gapBMax" min="220" max="255" step="1" value="240" class="dim-when-auto" style="margin-top:8px">
+        <div class="rv"><span class="rv-v" id="gapBMaxDisp">240</span><span class="rv-h">B 최대 저장값 — A뷰어 완전 흰색 억제</span></div>
+      </div>
+      <div class="s-item">
+        <label>② 보간 역보정 (오버슈트)</label>
+        <div class="opt-row">
+          <input type="checkbox" id="interpCompOn">
+          <span class="opt-label">보간 후 원래 색이 나오도록 저장값 사전 보정</span>
+        </div>
+        <input type="range" id="interpCompStr" min="0" max="100" step="5" value="50" class="dim-when-auto" style="margin-top:8px">
+        <div class="rv"><span class="rv-v" id="interpCompStrDisp">50%</span><span class="rv-h">보정 강도</span></div>
+      </div>
+      <div class="s-item">
+        <label>③ 양방향 적응적 밀도</label>
+        <div class="opt-row">
+          <input type="checkbox" id="adaptDensityOn">
+          <span class="opt-label">A/B 그래디언트로 중요 디테일에 해당 픽셀 우선 배치</span>
+        </div>
+        <input type="range" id="adaptDensityStr" min="0" max="100" step="5" value="50" class="dim-when-auto" style="margin-top:8px">
+        <div class="rv"><span class="rv-v" id="adaptDensityStrDisp">50%</span><span class="rv-h">적응 강도</span></div>
+      </div>
+      <div class="s-item">
+        <label>④ 지각적 전처리 강화</label>
+        <div class="opt-row">
+          <input type="checkbox" id="perceptPrepOn">
+          <span class="opt-label">A/B 프록시에 언샤프 마스크 — 노이즈 속 엣지 보존</span>
+        </div>
+        <input type="range" id="perceptSharpA" min="0" max="100" step="5" value="40" class="dim-when-auto" style="margin-top:8px">
+        <div class="rv"><span class="rv-v" id="perceptSharpADisp">40%</span><span class="rv-h">A 샤프닝 (흰 노이즈 속 형태 보존)</span></div>
+        <input type="range" id="perceptSharpB" min="0" max="100" step="5" value="40" class="dim-when-auto" style="margin-top:8px">
+        <div class="rv"><span class="rv-v" id="perceptSharpBDisp">40%</span><span class="rv-h">B 샤프닝 (검은 노이즈 속 색 보존)</span></div>
+      </div>
+      <div class="s-item">
+        <label>⑤ 주파수 분리</label>
+        <div class="opt-row">
+          <input type="checkbox" id="freqSplitOn">
+          <span class="opt-label">A=저주파(보간에 강함), B=고주파 강화(디테일 보존)</span>
+        </div>
+        <input type="range" id="freqSplitStr" min="0" max="100" step="5" value="40" class="dim-when-auto" style="margin-top:8px">
+        <div class="rv"><span class="rv-v" id="freqSplitStrDisp">40%</span><span class="rv-h">분리 강도</span></div>
+      </div>
+      <div class="s-item">
+        <label>⑥ 고급 모아레 완화</label>
+        <div class="opt-row">
+          <input type="checkbox" id="advMoireOn">
+          <span class="opt-label">블록 경계 미세 노이즈 + 다중 스케일 패턴 파괴</span>
+        </div>
+        <input type="range" id="advMoireStr" min="0" max="100" step="5" value="50" class="dim-when-auto" style="margin-top:8px">
+        <div class="rv"><span class="rv-v" id="advMoireStrDisp">50%</span><span class="rv-h">완화 강도</span></div>
+      </div>
+    </div>
+  </div>
+
   <!-- Progress -->
   <div class="prog" id="prog">
     <div class="prog-track"><div class="prog-fill" id="progFill"></div></div>
@@ -866,6 +931,175 @@ function meanAbsError(px1, px2){
   return n? (s/n) : 0;
 }
 
+// ── v8.0 가독성 개선 기능들 ──────────────────────────────────────────────────
+
+// v8 설정 읽기
+function getV8Config(){
+  const get=id=>{const el=document.getElementById(id);if(!el)return null;return el.type==='checkbox'?el.checked:parseInt(el.value);};
+  return{
+    gapReduceOn:get('gapReduceOn'),gapAMin:get('gapAMin'),gapBMax:get('gapBMax'),
+    interpCompOn:get('interpCompOn'),interpCompStr:get('interpCompStr'),
+    adaptDensityOn:get('adaptDensityOn'),adaptDensityStr:get('adaptDensityStr'),
+    perceptPrepOn:get('perceptPrepOn'),perceptSharpA:get('perceptSharpA'),perceptSharpB:get('perceptSharpB'),
+    freqSplitOn:get('freqSplitOn'),freqSplitStr:get('freqSplitStr'),
+    advMoireOn:get('advMoireOn'),advMoireStr:get('advMoireStr'),
+  };
+}
+
+// 체크박스 ON/OFF에 따라 관련 슬라이더 dim 토글
+function updateV8Dims(){
+  const pairs=[
+    ['gapReduceOn',['gapAMin','gapBMax']],
+    ['interpCompOn',['interpCompStr']],
+    ['adaptDensityOn',['adaptDensityStr']],
+    ['perceptPrepOn',['perceptSharpA','perceptSharpB']],
+    ['freqSplitOn',['freqSplitStr']],
+    ['advMoireOn',['advMoireStr']],
+  ];
+  for(const[cbId,sliderIds] of pairs){
+    const cb=document.getElementById(cbId);
+    if(!cb)continue;
+    const on=cb.checked;
+    for(const sid of sliderIds){
+      const el=document.getElementById(sid);
+      const rv=el&&el.nextElementSibling;
+      if(el)el.classList.toggle('dim-when-auto',!on);
+      if(rv)rv.classList.toggle('dim-when-auto',!on);
+    }
+  }
+}
+
+// ② 보간 역보정: 보간 후 원래 색이 나오도록 A 저장값 오버슈트 보정
+function applyInterpComp(out,W,H,safeMax,blockSize,mixMode,patternMode,moireGuard,strength){
+  if(strength<=0)return out;
+  const str=strength/100;
+  // mixMode 1 = A우선 3:1 (75% A pixels), otherwise 1:1 (50% A pixels)
+  const keepA=mixMode===1?0.75:0.5;
+  const ratio=(1-keepA)/keepA; // B-to-A pixel ratio for interpolation correction
+  const tmp=new Uint8Array(out);
+  const NEIGHBOR_RADIUS=2; // 5×5 neighborhood to sample opposite-type pixels
+  for(let y=0;y<H;y++){
+    for(let x=0;x<W;x++){
+      const pi=(y*W+x)*4;
+      const isA=isAPixelPattern(x,y,blockSize,mixMode,patternMode,moireGuard);
+      if(!isA)continue;
+      for(let c=0;c<3;c++){
+        let bSum=0,bCnt=0;
+        for(let dy=-NEIGHBOR_RADIUS;dy<=NEIGHBOR_RADIUS;dy++){
+          for(let dx=-NEIGHBOR_RADIUS;dx<=NEIGHBOR_RADIUS;dx++){
+            const nx=x+dx,ny=y+dy;
+            if(nx<0||nx>=W||ny<0||ny>=H)continue;
+            if(!isAPixelPattern(nx,ny,blockSize,mixMode,patternMode,moireGuard)){
+              bSum+=tmp[(ny*W+nx)*4+c];bCnt++;
+            }
+          }
+        }
+        if(bCnt===0)continue;
+        const bAvg=bSum/bCnt;
+        const desired=tmp[pi+c];
+        const corrected=desired*(1+ratio)-bAvg*ratio;
+        out[pi+c]=clamp255(Math.round(desired*(1-str)+corrected*str));
+        if(out[pi+c]>safeMax)out[pi+c]=safeMax;
+      }
+    }
+  }
+  return out;
+}
+
+// ③ Sobel 그래디언트 맵 계산
+function computeSobelMap(px,W,H){
+  const lum=new Float32Array(W*H);
+  for(let i=0;i<W*H;i++)lum[i]=luminance(px[i*4],px[i*4+1],px[i*4+2]);
+  const out=new Float32Array(W*H);
+  for(let y=1;y<H-1;y++){
+    for(let x=1;x<W-1;x++){
+      const gx=(-lum[(y-1)*W+(x-1)]+lum[(y-1)*W+(x+1)]-2*lum[y*W+(x-1)]+2*lum[y*W+(x+1)]-lum[(y+1)*W+(x-1)]+lum[(y+1)*W+(x+1)]);
+      const gy=(-lum[(y-1)*W+(x-1)]-2*lum[(y-1)*W+x]-lum[(y-1)*W+(x+1)]+lum[(y+1)*W+(x-1)]+2*lum[(y+1)*W+x]+lum[(y+1)*W+(x+1)]);
+      out[y*W+x]=Math.sqrt(gx*gx+gy*gy);
+    }
+  }
+  return out;
+}
+
+// ③ 양방향 적응적 밀도: 그래디언트 기반 마스크 오버레이
+function overlayAdaptiveDensity(mask,W,H,pxA,pxB,strength){
+  if(strength<=0)return mask;
+  const str=strength/100;
+  const gradA=computeSobelMap(pxA,W,H);
+  const gradB=computeSobelMap(pxB,W,H);
+  let maxG=1;
+  for(let i=0;i<W*H;i++){if(gradA[i]>maxG)maxG=gradA[i];if(gradB[i]>maxG)maxG=gradB[i];}
+  const out=new Uint8Array(mask);
+  // threshold: minimum dominance fraction to override mask (scales with strength)
+  const threshold=0.12*str;
+  // minTotal: skip pixels where both A and B have negligible gradients
+  const minTotal=0.04;
+  for(let i=0;i<W*H;i++){
+    const gA=gradA[i]/maxG,gB=gradB[i]/maxG;
+    const total=gA+gB;
+    if(total<minTotal)continue;
+    const diff=(gA-gB)/total;
+    if(diff>threshold)out[i]=1;
+    else if(diff<-threshold)out[i]=0;
+  }
+  return out;
+}
+
+// unsharp mask radius: proportional to blockSize for context-aware sharpening
+function unsharpRadius(blockSize){return Math.max(0.5,blockSize*0.8);}
+
+// ④ 언샤프 마스크
+function unsharpMask(px,W,H,radius,amount){
+  if(amount<=0||radius<0.1)return new Uint8Array(px);
+  const src=document.createElement('canvas');src.width=W;src.height=H;
+  src.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(px),W,H),0,0);
+  const blurred=blurCanvasToData(src,W,H,radius);
+  const out=new Uint8Array(px.length);
+  const k=amount/100;
+  for(let i=0;i<px.length;i+=4){
+    for(let c=0;c<3;c++)out[i+c]=clamp255(Math.round(px[i+c]+k*(px[i+c]-blurred[i+c])));
+    out[i+3]=255;
+  }
+  return out;
+}
+
+// ⑤ 주파수 분리: A=저주파, B=고주파 강화
+function applyFreqSplit(pxA,pxB,W,H,blockSize,strength){
+  if(strength<=0)return{pxA,pxB};
+  const str=strength/100;
+  const blurR=Math.max(0.5,blockSize*str*1.5);
+  const blurredA=blurRGBA(pxA,W,H,blurR);
+  const blurredB=blurRGBA(pxB,W,H,blurR);
+  const outB=new Uint8Array(pxB.length);
+  // scale high-frequency boost to 80% of strength to avoid over-sharpening
+  const hfStr=str*0.8;
+  for(let i=0;i<pxB.length;i+=4){
+    for(let c=0;c<3;c++)outB[i+c]=clamp255(Math.round(pxB[i+c]+(pxB[i+c]-blurredB[i+c])*hfStr));
+    outB[i+3]=255;
+  }
+  return{pxA:blurredA,pxB:outB};
+}
+
+// ⑥ 고급 모아레 완화: 블록 경계 미세 노이즈 디더링
+function applyAdvMoire(out,W,H,blockSize,moireGuard,strength){
+  if(strength<=0)return out;
+  // max noise amplitude is ±3 stored values at full strength
+  const noiseAmp=strength/100*3;
+  const bs=Math.max(1,blockSize);
+  for(let y=0;y<H;y++){
+    for(let x=0;x<W;x++){
+      const tx=x%bs,ty=y%bs;
+      const isBoundary=tx===0||ty===0||(bs>1&&(tx===bs-1||ty===bs-1));
+      if(!isBoundary)continue;
+      const pi=(y*W+x)*4;
+      // seed offset 42+moireGuard ensures noise pattern varies with moire guard level
+      const noise=Math.round((hash01(x,y,42+moireGuard)-0.5)*2*noiseAmp);
+      for(let c=0;c<3;c++)out[pi+c]=clamp255(out[pi+c]+noise);
+    }
+  }
+  return out;
+}
+
 // ── Core: checkerboard merge ───────────────────────────────────────────────
 function buildCheckerboard(pxA, pxB, W, H, pal, safeMax, blockSize, tintMax, aBoost, mixMode, patternMode, moireGuard=0){
   const encB = gammaTintFS(pxB, W, H, pal, tintMax);
@@ -973,7 +1207,13 @@ function applyPreset1(){
     aBoost:100,
     bLift:130,
     bSat:120,
-    bContrast:110
+    bContrast:110,
+    gapReduceOn:false,gapAMin:30,gapBMax:240,
+    interpCompOn:false,interpCompStr:50,
+    adaptDensityOn:false,adaptDensityStr:50,
+    perceptPrepOn:false,perceptSharpA:40,perceptSharpB:40,
+    freqSplitOn:false,freqSplitStr:40,
+    advMoireOn:false,advMoireStr:50
   };
   for(const [id,val] of Object.entries(preset)){
     const el=document.getElementById(id);
@@ -1006,7 +1246,13 @@ function applyPreset2(){
     aBoost:100,
     bLift:130,
     bSat:110,
-    bContrast:110
+    bContrast:110,
+    gapReduceOn:false,gapAMin:30,gapBMax:240,
+    interpCompOn:false,interpCompStr:50,
+    adaptDensityOn:false,adaptDensityStr:50,
+    perceptPrepOn:false,perceptSharpA:40,perceptSharpB:40,
+    freqSplitOn:false,freqSplitStr:40,
+    advMoireOn:false,advMoireStr:50
   };
   for(const [id,val] of Object.entries(preset)){
     const el=document.getElementById(id);
@@ -1024,6 +1270,9 @@ function resetAll(){rmImg({stopPropagation:()=>{}},'A');rmImg({stopPropagation:(
 ['nColors','bFloor','bBias','bHold','blockSize','borderVal','safeMaxVal','aBoost','mixMode','patternMode','ghostGuard','moireGuard','camoufStrength','aLeakCut','bLeakCut','bLift','bSat','bContrast'].forEach(id=>document.getElementById(id).addEventListener('input',()=>{if(['nColors','bBias','bHold','bLift','bSat','bContrast'].includes(id)) invalidateAdaptiveCache(); updateLabels();schedPrev();}));
 document.getElementById('tintColor').addEventListener('input',()=>{updateLabels();schedPrev();});
 document.getElementById('autoOptimize').addEventListener('change',()=>{invalidateAdaptiveCache(); updateLabels(); schedPrev();});
+// v8.0 가독성 개선 컨트롤
+['gapAMin','gapBMax','interpCompStr','adaptDensityStr','perceptSharpA','perceptSharpB','freqSplitStr','advMoireStr'].forEach(id=>document.getElementById(id).addEventListener('input',()=>{updateLabels();schedPrev();}));
+['gapReduceOn','interpCompOn','adaptDensityOn','perceptPrepOn','freqSplitOn','advMoireOn'].forEach(id=>document.getElementById(id).addEventListener('change',()=>{updateLabels();schedPrev();}));
 const BLOCK_LABELS=['','1×1px','2×2px','4×4px','8×8px'];
 function updateLabels(){
   const n=parseInt(document.getElementById('nColors').value);
@@ -1074,6 +1323,24 @@ function updateLabels(){
   const tm=getTintMax();
   document.getElementById('tintInfo').textContent=`채널 상단값: R${tm[0]} G${tm[1]} B${tm[2]} · 바닥 ${bFloor} · 편향 ${bBias}% · 유지 ${bHold}%`;
   updateAutoBadge(_adaptPalCache);
+  // v8 슬라이더 레이블
+  const gapAMin=parseInt(document.getElementById('gapAMin').value);
+  const gapBMax=parseInt(document.getElementById('gapBMax').value);
+  const interpCompStr=parseInt(document.getElementById('interpCompStr').value);
+  const adaptDensityStr=parseInt(document.getElementById('adaptDensityStr').value);
+  const perceptSharpA=parseInt(document.getElementById('perceptSharpA').value);
+  const perceptSharpB=parseInt(document.getElementById('perceptSharpB').value);
+  const freqSplitStr=parseInt(document.getElementById('freqSplitStr').value);
+  const advMoireStr=parseInt(document.getElementById('advMoireStr').value);
+  document.getElementById('gapAMinDisp').textContent=gapAMin;
+  document.getElementById('gapBMaxDisp').textContent=gapBMax;
+  document.getElementById('interpCompStrDisp').textContent=interpCompStr+'%';
+  document.getElementById('adaptDensityStrDisp').textContent=adaptDensityStr+'%';
+  document.getElementById('perceptSharpADisp').textContent=perceptSharpA+'%';
+  document.getElementById('perceptSharpBDisp').textContent=perceptSharpB+'%';
+  document.getElementById('freqSplitStrDisp').textContent=freqSplitStr+'%';
+  document.getElementById('advMoireStrDisp').textContent=advMoireStr+'%';
+  updateV8Dims();
 }
 function schedPrev(){clearTimeout(prevTimer);prevTimer=setTimeout(runPreview,350);}
 
@@ -1093,6 +1360,7 @@ function runPreview(){
   const bLeakCut=parseInt(document.getElementById('bLeakCut').value);
   const mixMode=parseInt(document.getElementById('mixMode').value);
   const camoufStrength=parseInt(document.getElementById('camoufStrength').value);
+  const v8=getV8Config();
   const PREV_W=160;
   const pH=Math.round(PREV_W*imgA.naturalHeight/imgA.naturalWidth);
   const cvA=document.getElementById('cvA'),cvB=document.getElementById('cvB');
@@ -1102,9 +1370,24 @@ function runPreview(){
 
   const gp=getGhostParams(ghostGuard,blockSize);
   const mp=getMoireParams(moireGuard,blockSize);
-  const pxAProxy=prepareEncodeProxyFromCanvas(cvA,PREV_W,pH,gp.aBlur+mp.aBlurAdd,gp.aTile);
-  const pxBProxy=prepareEncodeProxyFromCanvas(cvB,PREV_W,pH,gp.bBlur+mp.bBlurAdd,gp.bTile);
-  const bTarget=preprocessB(pxBProxy,bLift,bSat,bContrast);
+  let pxAProxy=prepareEncodeProxyFromCanvas(cvA,PREV_W,pH,gp.aBlur+mp.aBlurAdd,gp.aTile);
+  let pxBProxy=prepareEncodeProxyFromCanvas(cvB,PREV_W,pH,gp.bBlur+mp.bBlurAdd,gp.bTile);
+
+  // ⑤ 주파수 분리
+  if(v8.freqSplitOn&&v8.freqSplitStr>0){
+    const fs=applyFreqSplit(pxAProxy,pxBProxy,PREV_W,pH,blockSize,v8.freqSplitStr);
+    pxAProxy=fs.pxA;pxBProxy=fs.pxB;
+  }
+
+  let bTarget=preprocessB(pxBProxy,bLift,bSat,bContrast);
+
+  // ④ 지각적 전처리
+  if(v8.perceptPrepOn){
+    const r=unsharpRadius(blockSize);
+    pxAProxy=unsharpMask(pxAProxy,PREV_W,pH,r,v8.perceptSharpA||0);
+    bTarget=unsharpMask(bTarget,PREV_W,pH,r,v8.perceptSharpB||0);
+  }
+
   const pal=getPalette(bTarget);
   updateAutoBadge(pal);
 
@@ -1119,6 +1402,11 @@ function runPreview(){
     maskA=buildMaskBinary(PREV_W,pH,blockSize,mixMode,patternMode,moireGuard);
   }
 
+  // ③ 양방향 적응적 밀도
+  if(v8.adaptDensityOn&&v8.adaptDensityStr>0){
+    maskA=overlayAdaptiveDensity(maskA,PREV_W,pH,pxAProxy,bTarget,v8.adaptDensityStr);
+  }
+
   const baseEncB=gammaTintFS(bTarget,PREV_W,pH,pal,tintMax);
   const bLeakRaw=blurRGBA(applyMaskRGBA(baseEncB,maskA,false),PREV_W,pH,getLeakBlur(blockSize,patternMode,'A'));
   const aCompProxy=subtractLeak(pxAProxy,bLeakRaw,aLeakCut,1.15);
@@ -1128,7 +1416,8 @@ function runPreview(){
   const bCompTarget=subtractLeak(bTarget,aLeakDecoded,Math.round(bLeakCut*0.35),0.95);
   const encBFinal=gammaTintFS(bCompTarget,PREV_W,pH,pal,tintMax,aLeakDecoded,bLeakCut);
 
-  const combined=buildCheckerboardFromEncB(aCompProxy,encBFinal,PREV_W,pH,safeMax,blockSize,aBoost,mixMode,patternMode,moireGuard);
+  // ①②⑥ buildCheckerboardFromEncB with v8 config
+  const combined=buildCheckerboardFromEncB(aCompProxy,encBFinal,PREV_W,pH,safeMax,blockSize,aBoost,mixMode,patternMode,moireGuard,v8);
   const sA=simRaw(combined,PREV_W,pH);
   const sB=simGamaInterpolated(combined,PREV_W,pH,pal.decodeExp,blockSize,patternMode,moireGuard);
   const simA=document.getElementById('simA'),simB=document.getElementById('simB');
@@ -1160,6 +1449,7 @@ async function generate(){
   const bLeakCut=parseInt(document.getElementById('bLeakCut').value);
   const mixMode=parseInt(document.getElementById('mixMode').value);
   const camoufStrength=parseInt(document.getElementById('camoufStrength').value);
+  const v8=getV8Config();
 
   const W=Math.min(imgA.naturalWidth,imgB.naturalWidth);
   const H=Math.min(imgA.naturalHeight,imgB.naturalHeight);
@@ -1171,9 +1461,24 @@ async function generate(){
 
   const gp=getGhostParams(ghostGuard,blockSize);
   const mp=getMoireParams(moireGuard,blockSize);
-  const pxAProxy=prepareEncodeProxyFromCanvas(cvA,W,H,gp.aBlur+mp.aBlurAdd,gp.aTile);
-  const pxBProxy=prepareEncodeProxyFromCanvas(cvB,W,H,gp.bBlur+mp.bBlurAdd,gp.bTile);
-  const bTarget=preprocessB(pxBProxy,bLift,bSat,bContrast);
+  let pxAProxy=prepareEncodeProxyFromCanvas(cvA,W,H,gp.aBlur+mp.aBlurAdd,gp.aTile);
+  let pxBProxy=prepareEncodeProxyFromCanvas(cvB,W,H,gp.bBlur+mp.bBlurAdd,gp.bTile);
+
+  // ⑤ 주파수 분리
+  if(v8.freqSplitOn&&v8.freqSplitStr>0){
+    const fs=applyFreqSplit(pxAProxy,pxBProxy,W,H,blockSize,v8.freqSplitStr);
+    pxAProxy=fs.pxA;pxBProxy=fs.pxB;
+  }
+
+  let bTarget=preprocessB(pxBProxy,bLift,bSat,bContrast);
+
+  // ④ 지각적 전처리
+  if(v8.perceptPrepOn){
+    const r=unsharpRadius(blockSize);
+    pxAProxy=unsharpMask(pxAProxy,W,H,r,v8.perceptSharpA||0);
+    bTarget=unsharpMask(bTarget,W,H,r,v8.perceptSharpB||0);
+  }
+
   const pal=getPalette(bTarget);
   updateAutoBadge(pal);
 
@@ -1187,6 +1492,11 @@ async function generate(){
     maskA=buildMaskAdaptiveContent(W,H,aLumMap,bLumMap,blockSize,mixMode,patternMode,moireGuard,camoufStrength);
   } else {
     maskA=buildMaskBinary(W,H,blockSize,mixMode,patternMode,moireGuard);
+  }
+
+  // ③ 양방향 적응적 밀도
+  if(v8.adaptDensityOn&&v8.adaptDensityStr>0){
+    maskA=overlayAdaptiveDensity(maskA,W,H,pxAProxy,bTarget,v8.adaptDensityStr);
   }
 
   setProg(true,'B 기본 팔레트 계산...',12);await tick();
@@ -1205,7 +1515,7 @@ async function generate(){
   const encB=await tintDitherAsync(bCompTarget,W,H,pal,tintMax,aLeakDecoded,bLeakCut);
 
   setProg(true,'체커보드 합성...',74);await tick();
-  const combined=buildCheckerboardFromEncB(aCompProxy,encB,W,H,safeMax,blockSize,aBoost,mixMode,patternMode,moireGuard);
+  const combined=buildCheckerboardFromEncB(aCompProxy,encB,W,H,safeMax,blockSize,aBoost,mixMode,patternMode,moireGuard,v8);
 
   setProg(true,'PNG 인코딩 + 테두리 + gAMA...',84);await tick();
   const bW=W+2*border,bH=H+2*border;
@@ -1244,23 +1554,31 @@ async function generate(){
   document.getElementById('goBtn').disabled=false;
 }
 
-function buildCheckerboardFromEncB(pxA, encB, W, H, safeMax, blockSize, aBoost, mixMode, patternMode, moireGuard=0){
+function buildCheckerboardFromEncB(pxA, encB, W, H, safeMax, blockSize, aBoost, mixMode, patternMode, moireGuard=0, v8cfg=null){
+  const gapAMin=(v8cfg&&v8cfg.gapReduceOn&&v8cfg.gapAMin!=null)?v8cfg.gapAMin:0;
+  const gapBMax=(v8cfg&&v8cfg.gapReduceOn&&v8cfg.gapBMax!=null)?v8cfg.gapBMax:255;
   const out=new Uint8Array(W*H*4);
   for(let y=0;y<H;y++){
     for(let x=0;x<W;x++){
       const pi=(y*W+x)*4;
       const isA=isAPixelPattern(x,y,blockSize,mixMode,patternMode,moireGuard);
       if(isA){
-        out[pi]  =compressToSafe(pxA[pi],safeMax,aBoost);
-        out[pi+1]=compressToSafe(pxA[pi+1],safeMax,aBoost);
-        out[pi+2]=compressToSafe(pxA[pi+2],safeMax,aBoost);
+        out[pi]  =Math.max(gapAMin,compressToSafe(pxA[pi],safeMax,aBoost));
+        out[pi+1]=Math.max(gapAMin,compressToSafe(pxA[pi+1],safeMax,aBoost));
+        out[pi+2]=Math.max(gapAMin,compressToSafe(pxA[pi+2],safeMax,aBoost));
       } else {
-        out[pi]  =encB[pi];
-        out[pi+1]=encB[pi+1];
-        out[pi+2]=encB[pi+2];
+        out[pi]  =Math.min(gapBMax,encB[pi]);
+        out[pi+1]=Math.min(gapBMax,encB[pi+1]);
+        out[pi+2]=Math.min(gapBMax,encB[pi+2]);
       }
       out[pi+3]=255;
     }
+  }
+  if(v8cfg&&v8cfg.interpCompOn&&v8cfg.interpCompStr>0){
+    applyInterpComp(out,W,H,safeMax,blockSize,mixMode,patternMode,moireGuard,v8cfg.interpCompStr);
+  }
+  if(v8cfg&&v8cfg.advMoireOn&&v8cfg.advMoireStr>0){
+    applyAdvMoire(out,W,H,blockSize,moireGuard,v8cfg.advMoireStr);
   }
   return out;
 }
